@@ -8,7 +8,7 @@ keywords: ["agent skills", "install", "symlink", "npx skills"]
 Run Navi's installer from the project you want your coding agent to review:
 
 ```bash
-npm install --save-dev @machinepathindustries/navi
+npm install --save-dev @machinepath/navi
 npx --no-install navi-cli install
 ```
 
@@ -72,7 +72,7 @@ This installs the interop skill and its lockfile. It does not install Navi or
 create `.agents/bin/navi`, so keep the project dependency:
 
 ```bash
-npm install --save-dev @machinepathindustries/navi
+npm install --save-dev @machinepath/navi
 npx --no-install navi-cli --version
 ```
 
@@ -80,7 +80,7 @@ Without the symlink launcher, the interop skill calls the project dependency
 without downloading another copy:
 
 ```bash
-npm exec --offline --package=@machinepathindustries/navi -- navi-cli
+npm exec --offline --package=@machinepath/navi -- navi-cli
 ```
 
 <Warning>
@@ -95,4 +95,5 @@ npx skills remove navi-interop --yes
 ```
 
 Next, [ask a repository question, judge a decision, or check a completion
-claim](/ask-decide-check).
+claim](/ask-decide-check). For a complete integration example, see
+[Use Navi with OpenCode](/opencode).

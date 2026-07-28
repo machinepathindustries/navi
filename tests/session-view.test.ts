@@ -1272,7 +1272,17 @@ describe("session-view — CLI verbs (subprocess, per-suite temp NAVI_DB)", () =
   });
 
   it("navi story <handle> resolves the word handle; nonsense token is friendly", async () => {
-    const id = `session-story-human-${randomUUID()}`;
+    // This suite already seeds 240 sessions for the large-output test. Handles
+    // have 3,072 possible adjective/noun pairs, so choosing this id blindly made
+    // the subprocess test fail whenever it collided with one of those sessions.
+    // Pick a genuinely unoccupied handle before asserting one-to-one resolution.
+    const occupied = new Set(
+      (await listSessions(storage, {}))._unsafeUnwrap().map(({ session_id }) =>
+        handleOf(session_id),
+      ),
+    );
+    let id = `session-story-human-${randomUUID()}`;
+    while (occupied.has(handleOf(id))) id = `session-story-human-${randomUUID()}`;
     sources.add(id);
     created.add(id);
     expect(

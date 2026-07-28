@@ -53,6 +53,7 @@ const onboardingSurfaces = [
   ["README.md", readme],
   ["quickstart.mdx", readPage("quickstart")],
   ["connect-your-agent.mdx", readPage("connect-your-agent")],
+  ["opencode.mdx", readPage("opencode")],
 ] as const;
 
 const humanAnswerSurfaces = [
@@ -110,7 +111,7 @@ describe("public documentation release surface", () => {
   });
 
   it("installs the scoped package and teaches the short local launcher", () => {
-    const install = "npm install --save-dev @machinepathindustries/navi";
+    const install = "npm install --save-dev @machinepath/navi";
     for (const [name, surface] of onboardingSurfaces) {
       const shell = surface.replace(/\\\r?\n\s*/g, "");
       expect(shell, `${name} must install the scoped package`).toContain(install);
@@ -121,7 +122,7 @@ describe("public documentation release surface", () => {
     }
     expect(publicText).not.toMatch(/\bnpm (?:i|install)(?: --save-dev)? navi-cli\b/);
     expect(publicText).not.toMatch(/\bnpm (?:i|install)(?: --save-dev)? navi\b/);
-    expect(publicText).not.toContain("npx @machinepathindustries/navi");
+    expect(publicText).not.toContain("npx @machinepath/navi");
     expect(publicText).toContain("npx --no-install navi-cli");
     expect(publicText).not.toMatch(/\bnpx navi-cli\b/);
   });
@@ -154,7 +155,7 @@ describe("public documentation release surface", () => {
     expect(connect).toContain("--agent universal");
     expect(connect).toContain("--yes");
     expect(connect).toContain(
-      "npm exec --offline --package=@machinepathindustries/navi -- navi-cli",
+      "npm exec --offline --package=@machinepath/navi -- navi-cli",
     );
     expect(connect).toContain(
       "npx skills remove navi-interop --yes",
@@ -163,6 +164,19 @@ describe("public documentation release surface", () => {
     expect(connect).toContain(
       "Navi removes only links that still match its ownership receipt.",
     );
+  });
+
+  it("documents the verified OpenCode interop path without local machine details", () => {
+    const opencode = readPage("opencode");
+    expect(opencode).toContain("opencode run");
+    expect(opencode).toContain("npx --no-install navi-cli install");
+    expect(opencode).toContain(".agents/skills/navi-interop/SKILL.md");
+    expect(opencode).toContain("./.agents/bin/navi");
+    expect(opencode).toContain("OpenCode and Navi make separate model calls.");
+    expect(opencode).toContain("git status --short");
+    expect(opencode).toContain("remained empty");
+    expect(opencode).not.toContain("A recorded terminal run");
+    expect(opencode).not.toMatch(/\/Users\/|\/home\/[^<]/i);
   });
 
   it("shows a real grounded result instead of describing an imagined one", () => {

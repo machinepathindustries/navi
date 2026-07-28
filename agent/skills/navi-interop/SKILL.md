@@ -19,7 +19,7 @@ Choose one launcher and keep it for the task:
 1. Prefer the absolute `<repo>/.agents/bin/navi` when it exists and is
    executable. `navi install` creates that project-local link.
 2. Otherwise, when `<repo>/node_modules/.bin/navi-cli` exists, run
-   `npm exec --offline --package=@machinepathindustries/navi -- navi-cli` from
+   `npm exec --offline --package=@machinepath/navi -- navi-cli` from
    the repository. This is the launcher for a
    project-local package installed without Navi's symlink installer.
 3. Otherwise use `navi` only when it resolves on `PATH`.

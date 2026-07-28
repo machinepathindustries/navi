@@ -7,7 +7,7 @@ set -uo pipefail
 APP=/opt/navi
 NAVI="$APP/node_modules/.bin/navi"
 NAVI_CLI="$APP/node_modules/.bin/navi-cli"
-PACKAGE="$APP/node_modules/@machinepathindustries/navi"
+PACKAGE="$APP/node_modules/@machinepath/navi"
 WALK=/home/navi/walk
 PROBE=/home/navi/probe
 CHECK=/home/navi/check
@@ -87,10 +87,10 @@ command -v navi >/dev/null \
 command -v navi-cli >/dev/null \
   && ok "navi-cli resolves on PATH" \
   || bad "the installed navi-cli command is absent from PATH"
-[ "$(readlink "$NAVI")" = "../@machinepathindustries/navi/bin/navi.mjs" ] \
+[ "$(readlink "$NAVI")" = "../@machinepath/navi/bin/navi.mjs" ] \
   && ok "npm bin points at bin/navi.mjs" \
   || bad "npm bin target is $(readlink "$NAVI" 2>/dev/null || printf missing)"
-[ "$(readlink "$NAVI_CLI")" = "../@machinepathindustries/navi/bin/navi.mjs" ] \
+[ "$(readlink "$NAVI_CLI")" = "../@machinepath/navi/bin/navi.mjs" ] \
   && ok "navi-cli npm bin points at bin/navi.mjs" \
   || bad "navi-cli npm bin target is $(readlink "$NAVI_CLI" 2>/dev/null || printf missing)"
 [ -f "$PACKAGE/builtin/workflows/edge-walk/judge.schema.ts" ] \
@@ -219,8 +219,8 @@ RC=$?
 [ "$RC" -eq 0 ] && grep -Eq '^[[:space:]]+DIRECT — cold-start continuation probe$' <<<"$OUT" \
   && ok "documented local-only npx command returned the model-free gate" \
   || bad "documented local-only npx command failed (rc=$RC): $(head -2 <<<"$OUT")"
-NEXT=$(sed -n 's|^[[:space:]]*\(npm exec --offline --package=@machinepathindustries/navi -- navi-cli run cold-gate.*\)$|\1|p' <<<"$OUT" | head -1)
-grep -Eq '^npm exec --offline --package=@machinepathindustries/navi -- navi-cli run cold-gate -t [^ ]+ -w /home/navi/walk$' <<<"$NEXT" \
+NEXT=$(sed -n 's|^[[:space:]]*\(npm exec --offline --package=@machinepath/navi -- navi-cli run cold-gate.*\)$|\1|p' <<<"$OUT" | head -1)
+grep -Eq '^npm exec --offline --package=@machinepath/navi -- navi-cli run cold-gate -t [^ ]+ -w /home/navi/walk$' <<<"$NEXT" \
   && ok "npx continuation stays offline and preserves -w" \
   || bad "npx continuation is not the documented installed command"
 FOLLOW=$(cd "$APP" && "${KEYLESS[@]}" bash -c "$NEXT" 2>&1)
@@ -446,7 +446,7 @@ RC=$?
   && ok "managed-skill fixture has a project dependency and no Navi launcher link" \
   || bad "managed-skill fixture does not match the documented setup"
 OUT=$(cd "$MANAGED" && "${KEYLESS[@]}" \
-  npm exec --offline --package=@machinepathindustries/navi -- \
+  npm exec --offline --package=@machinepath/navi -- \
   navi-cli --version 2>&1)
 RC=$?
 [ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.0$' <<<"$OUT" \
@@ -458,7 +458,7 @@ mkdir -p "$OFFLINE_MISS/work" "$OFFLINE_MISS/cache"
 printf '{"private":true}\n' >"$OFFLINE_MISS/work/package.json"
 OUT=$(cd "$OFFLINE_MISS/work" && "${KEYLESS[@]}" \
   env npm_config_cache="$OFFLINE_MISS/cache" \
-  npm exec --offline --package=@machinepathindustries/navi -- \
+  npm exec --offline --package=@machinepath/navi -- \
   navi-cli --version 2>&1)
 RC=$?
 [ "$RC" -ne 0 ] && grep -q 'ENOTCACHED' <<<"$OUT" \

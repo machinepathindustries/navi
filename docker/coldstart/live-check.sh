@@ -6,7 +6,7 @@ set -uo pipefail
 
 APP=/opt/navi
 NAVI="$APP/node_modules/.bin/navi"
-PACKAGE="$APP/node_modules/@machinepathindustries/navi"
+PACKAGE="$APP/node_modules/@machinepath/navi"
 WALK=/home/navi/walk
 LOCAL="$WALK/.agents/bin/navi"
 

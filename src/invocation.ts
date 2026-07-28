@@ -139,7 +139,7 @@ function npxBinName(invocation: NpmInvocation): string | undefined {
     .with(
       { command: "exec", lifecycleEvent: "npx" },
       (): string | undefined =>
-        "npm exec --offline --package=@machinepathindustries/navi -- navi-cli",
+        "npm exec --offline --package=@machinepath/navi -- navi-cli",
     )
     .otherwise(() => undefined);
 }

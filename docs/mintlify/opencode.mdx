@@ -1,0 +1,137 @@
+---
+title: "Use Navi with OpenCode"
+sidebarTitle: "OpenCode"
+description: "Let OpenCode call Navi for a cited repository answer, then continue the same session when Navi asks for a deeper read."
+keywords: ["OpenCode", "agent skills", "interop", "terminal"]
+---
+
+Navi fits OpenCode's existing Agent Skills layout. `navi install` links the
+interop skill under `.agents/skills/` and adds a project-local launcher under
+`.agents/bin/`; OpenCode already [discovers project skills](https://opencode.ai/docs/skills)
+there. OpenCode 1.17.13's
+[skill scanner follows symlinks](https://github.com/anomalyco/opencode/blob/v1.17.13/packages/opencode/src/skill/index.ts#L131-L145).
+
+You need macOS or Linux, Node.js 22.13 or newer, and
+[ripgrep](https://github.com/BurntSushi/ripgrep). Git is also required for
+revision-aware checks and flows that inspect a diff.
+
+<Steps>
+  <Step title="Install Navi in the project">
+    ```bash
+    cd /path/to/project
+    npm install --save-dev @machinepath/navi
+    npx --no-install navi-cli install
+    ```
+  </Step>
+
+  <Step title="Verify the connection">
+    ```bash
+    ./.agents/bin/navi --version
+    test -r .agents/skills/navi-interop/SKILL.md \
+      && test -x .agents/bin/navi \
+      && echo "Navi interop: ready"
+    ```
+
+    Start or restart OpenCode after installing the skill. Run OpenCode from the
+    project root or one of its subdirectories.
+  </Step>
+
+  <Step title="Configure both model connections">
+    OpenCode and Navi make separate model calls. Authenticate OpenCode with its
+    normal setup:
+
+    ```bash
+    opencode auth login
+    ```
+
+    Then give Navi a provider key. For example:
+
+    ```bash
+    export DEEPSEEK_API_KEY="<your-key>"
+    export NAVI_MODEL="deepseek/deepseek-v4-flash"
+    ```
+
+    Navi also reads these values from the project's `.env` file.
+    Keep `.env` ignored, never paste a credential into an OpenCode or Navi
+    prompt, and load keys without echoing them before recording a terminal.
+  </Step>
+
+  <Step title="Ask OpenCode to consult Navi">
+    Use OpenCode's [non-interactive `run` command](https://opencode.ai/docs/cli):
+
+    ```bash
+    opencode run \
+      'Use the navi-interop skill to ask Navi: "What command runs this repository test suite? Cite the exact file and line." Do not modify files. Show the exact Navi command and return its cited answer.'
+    ```
+
+    OpenCode loads the skill, calls the project-local `.agents/bin/navi`
+    launcher, and returns Navi's answer. When Navi's quick pass asks for a
+    deeper read, the skill runs the exact continuation command so the evidence
+    stays in the same session.
+  </Step>
+</Steps>
+
+## A verified interop result
+
+This condensed summary comes from an observed OpenCode 1.17.13 run using a
+packed Navi 0.1.0 build in a clean demo repository. It preserves the commands,
+answer, and citation while removing terminal decoration, timings, and the
+generated session ID.
+
+```console
+> Skill "navi-interop"
+
+$ <project>/.agents/bin/navi \
+    "What command runs this repository test suite? Cite the exact file and line." \
+    -w <project>
+
+navi: scanned the repo — 2 hits across 1 file
+
+⚠ This quick answer needs a deeper read. Run:
+  <project>/.agents/bin/navi \
+    "What command runs this repository test suite? Cite the exact file and line." \
+    -w <project> -t <session> --deep
+
+$ <project>/.agents/bin/navi \
+    "What command runs this repository test suite? Cite the exact file and line." \
+    -w <project> -t <session> --deep
+
+Answer
+The command is `npm test`.
+
+Sources
+- `README.md:3` — "Run the test suite with `npm test`."
+
+Confidence
+High
+
+No files were modified.
+```
+
+Navi requested the deep continuation, and the second read settled the question
+from the repository. A post-run `git status --short` remained empty.
+
+## Use the OpenCode TUI
+
+Start OpenCode from the project:
+
+```bash
+opencode
+```
+
+Then ask:
+
+```text
+Use the navi-interop skill to ask Navi where this repository configures retries.
+Cite the exact file and line. Do not modify files.
+```
+
+## If OpenCode does not call Navi
+
+- Restart OpenCode after `navi install`.
+- Run `./.agents/bin/navi --version` to verify the project launcher.
+- Check that your OpenCode permissions allow both the `skill` and `bash` tools.
+- Keep OpenCode authentication and Navi's provider key separate.
+
+See [Connect your coding agent](/connect-your-agent) for installation ownership
+and removal, or [Troubleshooting](/troubleshooting) for Navi runtime failures.

@@ -33,7 +33,8 @@
         "pages": [
           "index",
           "quickstart",
-          "connect-your-agent"
+          "connect-your-agent",
+          "opencode"
         ]
       },
       {

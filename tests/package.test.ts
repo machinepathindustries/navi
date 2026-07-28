@@ -74,9 +74,9 @@ describe("npm package — the tarball is the product boundary", () => {
       devDependencies: Record<string, string>;
       publishConfig: Record<string, string>;
     };
-    expect(packed.name).toBe("@machinepathindustries/navi");
+    expect(packed.name).toBe("@machinepath/navi");
     expect(manifest).toMatchObject({
-      name: "@machinepathindustries/navi",
+      name: "@machinepath/navi",
       bin: {
         navi: "bin/navi.mjs",
         "navi-cli": "bin/navi.mjs",
@@ -134,7 +134,7 @@ describe("npm package — the tarball is the product boundary", () => {
     );
     const packagedReadme = readFileSync(join(ROOT, "README.md"), "utf8");
     expect(packagedReadme).toContain(
-      "npm install --save-dev @machinepathindustries/navi",
+      "npm install --save-dev @machinepath/navi",
     );
     expect(packagedReadme).toContain("npx --no-install navi-cli");
     expect(packagedReadme).not.toMatch(/\bnpx navi-cli\b/);
@@ -149,7 +149,7 @@ describe("npm package — the tarball is the product boundary", () => {
       "utf8",
     );
     expect(interop).toContain(
-      "npm exec --offline --package=@machinepathindustries/navi -- navi-cli",
+      "npm exec --offline --package=@machinepath/navi -- navi-cli",
     );
     expect(interop.indexOf("<repo>/node_modules/.bin/navi-cli")).toBeLessThan(
       interop.indexOf("resolves on `PATH`"),

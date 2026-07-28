@@ -174,12 +174,12 @@ describe("invocationPrefix — project-local install", () => {
 });
 
 describe("invocationPrefix — npx continuation", () => {
-  const PACKAGE_ENTRY = `${REPO}/node_modules/@machinepathindustries/navi/bin/navi.mjs`;
+  const PACKAGE_ENTRY = `${REPO}/node_modules/@machinepath/navi/bin/navi.mjs`;
   const NPX = { command: "exec", lifecycleEvent: "npx" };
 
   it("keeps the next command runnable after npx removes its temporary PATH entry", () => {
     expect(runtimeInvocationPrefix([NODE, PACKAGE_ENTRY], [], NPX)).toBe(
-      "npm exec --offline --package=@machinepathindustries/navi -- navi-cli",
+      "npm exec --offline --package=@machinepath/navi -- navi-cli",
     );
     expect(
       runtimeInvocationPrefix(
@@ -187,7 +187,7 @@ describe("invocationPrefix — npx continuation", () => {
         [],
         NPX,
       ),
-    ).toBe("npm exec --offline --package=@machinepathindustries/navi -- navi-cli");
+    ).toBe("npm exec --offline --package=@machinepath/navi -- navi-cli");
   });
 
   it("does not override source-checkout or project-local launchers", () => {

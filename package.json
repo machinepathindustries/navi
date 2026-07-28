@@ -1,5 +1,5 @@
 {
-  "name": "@machinepathindustries/navi",
+  "name": "@machinepath/navi",
   "version": "0.1.0",
   "description": "A second reader for your coding agent: cited repo answers, reusable flows, and durable gates.",
   "type": "module",

@@ -8,6 +8,7 @@ Your coding agent writes. Navi reads and checks.
 
 [Documentation](https://machine-path.mintlify.site) ·
 [Quickstart](https://machine-path.mintlify.site/quickstart) ·
+[OpenCode](https://machine-path.mintlify.site/opencode) ·
 [CLI guide](https://machine-path.mintlify.site/cli) ·
 [Built-in flows](https://machine-path.mintlify.site/built-in-flows)
 
@@ -40,10 +41,13 @@ tested model from [Providers](https://machine-path.mintlify.site/providers)
 instead.
 
 ```bash
-npm install --save-dev @machinepathindustries/navi
+npm install --save-dev @machinepath/navi
 export DEEPSEEK_API_KEY="<your-key>"
 npx --no-install navi-cli "Where is retry behavior configured?"
 ```
+
+Keep provider keys in your shell or an ignored `.env` file. Never paste a real
+key into a prompt, terminal recording, issue, or commit.
 
 Requirements: macOS or Linux, Node.js 22.13 or newer,
 [ripgrep](https://github.com/BurntSushi/ripgrep), and one model-provider API
@@ -149,6 +153,7 @@ for the full boundary.
 |---|---|
 | Get a first cited answer | [Quickstart](https://machine-path.mintlify.site/quickstart) |
 | Connect Claude Code, Codex, Cursor, or another agent | [Connect your agent](https://machine-path.mintlify.site/connect-your-agent) |
+| Use Navi from OpenCode | [OpenCode guide](https://machine-path.mintlify.site/opencode) |
 | Pick the right command | [Ask, decide, and check](https://machine-path.mintlify.site/ask-decide-check) |
 | See every built-in review | [Built-in flows](https://machine-path.mintlify.site/built-in-flows) |
 | Continue or inspect work | [Sessions](https://machine-path.mintlify.site/sessions-and-outcomes) |
