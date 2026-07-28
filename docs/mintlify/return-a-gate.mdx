@@ -1,0 +1,124 @@
+---
+title: "Return a gate"
+description: "Emit a GateDecision from the final step to get gate-aware output, session state, and exit codes."
+---
+
+End a flow with Navi's `GateDecision` object when the result should direct the
+session. Navi recognizes the shape, records the turn, and emits a gate-aware
+exit code.
+
+## Emit the smallest working gate
+
+Create `.navi/workflows/check/action.yaml`:
+
+```yaml
+name: check
+description: Return a model-free CLEAR gate.
+
+steps:
+  - name: decide
+    type: command
+    command: |
+      printf '%s' \
+        '{"gate":"CLEAR","reason":"Required checks passed.",' \
+        '"blocking_directive_ids":[],"non_blocking_risks":[],' \
+        '"human_escalation":null,"confidence":1}'
+```
+
+Run it:
+
+```bash
+npx --no-install navi-cli run check
+```
+
+The output is a gate, not a generic command result:
+
+```text
+CLEAR — Required checks passed.
+```
+
+The command step succeeds with JSON on stdout. Navi unwraps that object and
+validates the final output as a gate. It then prints the session status and a
+continuation command using the same launcher that started the run. An agent step
+can return the same object as structured output.
+
+## Include every required field
+
+Return all six fields:
+
+| Field | Contract |
+|---|---|
+| `gate` | `CLEAR`, `DIRECT`, `REPAIR`, `BLOCKED`, `ESCALATE`, or `COMPLETE` |
+| `reason` | Non-empty judgment |
+| `blocking_directive_ids` | Array of directive ids; use `[]` when none |
+| `non_blocking_risks` | Array of risk strings; use `[]` when none |
+| `human_escalation` | Escalation message or `null` |
+| `confidence` | Number from `0` through `1` |
+
+All six fields are required.
+
+## Use the outcome, not exit 0, as the decision
+
+Each gate sets the session status and process exit. `DIRECT` and `REPAIR`
+deliberately exit `0`, so exit `0` means the run completed—not that the work was
+approved. Automation reads `gate` from `--json`.
+
+[Sessions and outcomes](/sessions-and-outcomes) owns the complete gate, status,
+and exit table.
+
+## Add directives, findings, and a handoff
+
+The final object may also include these validated sibling fields:
+
+| Field | Use |
+|---|---|
+| `directives` | Concrete work to return on a later `-t <session-id>` turn |
+| `findings` | Evidence-backed issues found by the judge |
+| `surface_map` | Surfaces, seams, unknowns, and revision hash used in the judgment |
+| `handoff` | On `COMPLETE`, one active flow name and one request string |
+
+If a sibling is present but invalid, the run fails instead of dropping it.
+
+A `handoff` has this shape:
+
+```json
+{
+  "flow": "founder",
+  "request": "Judge the implementation in docs/release-brief.md."
+}
+```
+
+Navi renders a handoff only when the named catalog flow is active and accepts a
+single required string argument.
+
+## Parse model text before it becomes a gate
+
+For model-written judgments, keep the model contract readable and make the
+final step deterministic:
+
+1. An agent emits fixed markdown headings.
+2. A command step passes that text to a parser beside `action.yaml`.
+3. The parser validates the headings and prints GateDecision JSON.
+4. A parse error exits nonzero; it never guesses a gate.
+
+The command step uses `$NAVI_ACTION_DIR` so the parser resolves from the active
+flow directory:
+
+```yaml
+- name: parse
+  type: command
+  depends: judge
+  command: |
+    node "$NAVI_ACTION_DIR/parse-gate.mjs" <<'__NAVI_GATE__'
+    {{ steps.judge.text }}
+    __NAVI_GATE__
+```
+
+## Keep Founder verdicts separate
+
+Founder uses the separate `GO`, `REFINE`, or `REJECT` verdict contract. A
+GateDecision directs workflow state; a Founder verdict judges whether a
+decision or artifact should proceed. The two shapes cannot be combined.
+
+See [Sessions and outcomes](/sessions-and-outcomes) for the verdict contract
+and [CLI automation reference](/cli) for machine-readable output.

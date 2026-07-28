@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.mastra/
+.env
+navi.db*
+.DS_Store
+
+# Local development state and generated verification artifacts.
+.agents/
+.claude/
+.navi/
+external/
+.navi-interop-install.json
+skills-lock.json
+artifacts/
+docker/**/results/

@@ -1,0 +1,14 @@
+{
+  "event": {
+    "directive_id": "DIRECTIVE_ID_PLACEHOLDER",
+    "evidence": [
+      {
+        "kind": "source_location",
+        "uri": "repair.ts",
+        "line_start": 11,
+        "line_end": 19,
+        "claim_supported": true
+      }
+    ]
+  }
+}

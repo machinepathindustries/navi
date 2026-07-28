@@ -1,0 +1,81 @@
+---
+title: "Sessions"
+description: "Continue one line of work, inspect its record, or branch from it without losing history."
+keywords: ["sessions", "continue", "story", "fork", "archive", "override"]
+---
+
+A session is the record of one line of work. It keeps the question or claim,
+Navi's answer, each verdict or check result, and the evidence you return.
+
+## Continue the same work
+
+When Navi asks for more evidence, its next command includes the session ID:
+
+```bash
+npx --no-install navi-cli check "<new evidence>" -t <session>
+```
+
+Keep `-t <session>` on the next run. Without it, Navi starts a new session and
+does not bring the earlier result into the review.
+
+The same continuation flag works for a repository question or a flow:
+
+```bash
+npx --no-install navi-cli "Re-check this with the new evidence" -t <session>
+npx --no-install navi-cli run founder "Review the revised approach" -t <session>
+```
+
+## Read the record
+
+List your sessions, inspect every turn, or read the shorter story:
+
+```bash
+npx --no-install navi-cli session list
+npx --no-install navi-cli session show <session>
+npx --no-install navi-cli story <session>
+```
+
+Use `session show` when you need the complete timeline and current state. Use
+`story` when you want the sequence of decisions and checks without the full
+turn detail. These commands do not call a model.
+
+Founder verdicts (`GO`, `REFINE`, `REJECT`) and completion-check results are
+part of the session record. There is no separate verdict object for you to
+manage.
+
+## Try an alternative without changing the original
+
+Fork a session when you want to test another approach while preserving the
+source:
+
+```bash
+npx --no-install navi-cli run founder \
+  "Judge the alternative approach" -t <session> --fork
+```
+
+Navi creates a new session with the source history and records the relationship
+between them.
+
+## Hide finished sessions from the default list
+
+Archiving changes list visibility; it does not delete history:
+
+```bash
+npx --no-install navi-cli session archive <session>
+npx --no-install navi-cli session unarchive <session>
+```
+
+## Record an explicit override
+
+If you choose to proceed against a demanding result, give the reason:
+
+```bash
+npx --no-install navi-cli check "<new evidence>" -t <session> \
+  --override "reason for proceeding"
+```
+
+Navi preserves the original result and records the override beside it. It does
+not rewrite the result as approved.
+
+For session filters, JSON fields, result values, and process exits, use the
+[Automation reference](/automation).

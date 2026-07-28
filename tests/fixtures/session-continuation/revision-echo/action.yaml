@@ -1,0 +1,10 @@
+name: revision-echo
+description: >-
+  Model-free command fixture proving the CLI injects the reserved `revision` key
+  (git HEAD) into the workflow input. Echoes {{ revision }}; the CLI run's result
+  stdout is the current HEAD — keyless (no model call).
+
+steps:
+  - name: echo
+    type: command
+    command: printf '%s' "{{ revision }}"

@@ -1,0 +1,12 @@
+name: provider-compat
+description: Prove that one provider can use a workspace tool and return validated structured output.
+
+steps:
+  - name: read_nonce
+    type: agent
+    tools: [view]
+    prompt: |
+      Use the view tool to read src/nonce.txt from the workspace. Do not infer or
+      invent its contents. Return the exact value without the trailing newline,
+      and set read_with_tool to true.
+    output: result.schema.ts

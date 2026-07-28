@@ -1,0 +1,11 @@
+name: hybrid-decision
+description: >-
+  Model-free negative fixture whose final command emits one object satisfying
+  both GateDecision and VerdictSchema. The CLI must reject the ambiguous
+  judgment instead of silently choosing either contract.
+
+steps:
+  - name: emit
+    type: command
+    command: >-
+      printf '%s' '{"gate":"CLEAR","reason":"the gate half is valid","blocking_directive_ids":[],"non_blocking_risks":[],"human_escalation":null,"confidence":0.9,"verdict":"GO","take":"the verdict half is valid","grounding_points":[],"decision_rules":[],"what_not_to_do":[]}'

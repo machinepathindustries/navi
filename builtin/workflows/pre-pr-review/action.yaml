@@ -1,0 +1,131 @@
+name: pre-pr-review
+description: >-
+  Branch-level readiness review: is this branch ready to open a PR? A command
+  step collects the branch diff vs a base ref (default: main), bounding a large
+  diff to a byte budget over whole-file chunks and reporting exactly which files
+  it read in full vs stat-only. An agent then reviews the shown hunks — findings
+  in code-review's frozen {file,line,severity,category,summary} shape — and
+  returns a readiness verdict (ready | not_ready) plus a one-line summary that
+  tells the calling agent what to do next: fix findings or proceed. Coverage is
+  reported honestly; a bounded read is never implied to be a full one.
+
+args:
+  base:
+    required: false
+    default: main
+    description: >-
+      The base ref to diff this branch against, e.g. "main", "develop",
+      "origin/main", or a commit sha. The review always covers base...HEAD (the
+      three-dot range — what this branch adds since its merge-base with base,
+      i.e. the PR's own contents). Must be a single ref (no whitespace). Defaults
+      to main.
+
+steps:
+  # Collect the branch diff in a command step so dynamic input is handled
+  # deterministically rather than delegated to an agent. Safety matches
+  # code-review's collector: `base` is UNTRUSTED author input, so it is NEVER
+  # interpolated into a position the shell parses. `{{ input.base }}` flows
+  # through a single-quoted heredoc straight into node's stdin — an embedded
+  # `;`, `$(…)`, backtick, or quote is inert data, never shell (proven live: a
+  # no-whitespace `main$(touch x)` payload reaches git as ONE literal revision
+  # and is rejected, no file written). node then runs `git` via spawnSync as
+  # ARGV (no shell), so the base token reaches git as a single literal revision.
+  # A dash guard rejects a base starting with "-" (a real ref never does; blocks
+  # arg-smuggled flags like --output=… that would make git WRITE a file); a
+  # whitespace guard rejects a multi-token base (defense-in-depth — one ref
+  # only). A bad/unknown base makes git exit nonzero → the step fails → exit 1
+  # (honesty guard, no silent success). node is guaranteed present (navi is a
+  # node CLI); require() resolves because `node -e` defaults to CommonJS.
+  #
+  # LARGE-DIFF STRATEGY (this repo's own branch diff vs main is ~294KB/40 files):
+  # the collector ALWAYS emits the complete `git diff --stat` inventory (every
+  # changed file + line counts), then appends the full unified diff bounded to a
+  # 200000-byte budget by WHOLE-FILE chunks (split on the `diff --git` marker, no
+  # mid-hunk truncation). A machine-readable `PRE-PR-REVIEW-META {…}` header names
+  # base/range/files_changed/bounded and lists exactly which files are shown in
+  # full vs stat-only, so the reviewer can report coverage without guessing.
+  - name: collect_diff
+    type: command
+    command: |
+      node -e 'const cp=require("node:child_process");let r="";process.stdin.on("data",d=>r+=d).on("end",()=>{const base=(r.replace(/\n+$/,"").trim())||"main";if(base.startsWith("-")){process.stderr.write("navi pre-pr-review: refusing a base ref that starts with \"-\" (looks like a git flag, not a revision): "+base+"\n");process.exit(2);}if(/\s/.test(base)){process.stderr.write("navi pre-pr-review: base must be a single git ref (no whitespace): "+base+"\n");process.exit(2);}const range=base+"...HEAD";const git=a=>cp.spawnSync("git",["--no-pager",...a],{encoding:"utf8",maxBuffer:1<<28});const stat=git(["diff","--stat",range]);if(stat.status!==0){process.stderr.write(stat.stderr||("git diff --stat failed for "+range+"\n"));process.exit(stat.status||1);}const full=git(["diff",range]);if(full.status!==0){process.stderr.write(full.stderr||("git diff failed for "+range+"\n"));process.exit(full.status||1);}const BUDGET=200000;const parts=full.stdout.split(/(?=^diff --git )/m).filter(Boolean);let included="",bytes=0,inFull=0,total=0;const statOnly=[];for(const p of parts){const m=p.match(/^diff --git a\/.+ b\/(.+)$/m);const file=m?m[1]:null;if(file)total++;if(bytes+p.length<=BUDGET){included+=p;bytes+=p.length;if(file)inFull++;}else if(file)statOnly.push(file);}const bounded=statOnly.length>0;const meta={base,range,files_changed:total,bounded,files_reviewed_in_full:inFull,files_stat_only:statOnly};process.stdout.write("PRE-PR-REVIEW-META "+JSON.stringify(meta)+"\n\n=== FILE INVENTORY (git diff --stat "+range+") - COMPLETE, every changed file listed ===\n"+stat.stdout+"\n=== UNIFIED DIFF ("+range+") - "+(bounded?"BOUNDED to "+BUDGET+" bytes: "+inFull+" of "+total+" files below in full; "+statOnly.length+" files are STAT-ONLY (in the inventory above, NOT read line-by-line): "+statOnly.join(", "):"COMPLETE, all "+total+" files below in full")+" ===\n"+included);})' <<'__NAVI_BASE_EOF__'
+      {{ input.base }}
+      __NAVI_BASE_EOF__
+
+  # Review and readiness share one agent step so the verdict stays consistent
+  # with the findings it emits. Explicit read-only `tools:`
+  # (READ_ONLY_WORKSPACE_TOOLS — absent tools: is now ZERO, not all) so it can
+  # read a file around a shown hunk for real context; shell is excluded. Output
+  # is the frozen readiness schema (co-located readiness.schema.ts).
+  - name: review
+    type: agent
+    depends: collect_diff
+    tools: [view, search_content, find_files, mastra_workspace_file_stat]
+    prompt: |
+      You are deciding whether a branch is ready to open a pull request. Below is
+      the collected branch diff against a base ref.
+
+      HOW THE INPUT IS STRUCTURED:
+      - The first line is `PRE-PR-REVIEW-META {…}` — machine facts: the base, the
+        range (base...HEAD), how many files changed, whether the unified diff was
+        bounded, how many files are shown in full, and the names of any STAT-ONLY
+        files (changed, counted in the inventory, but NOT included line-by-line
+        because the diff exceeded the byte budget).
+      - The `FILE INVENTORY` section is the COMPLETE `git diff --stat` — every
+        changed file with its +/- counts. This is your full picture of scope.
+      - The `UNIFIED DIFF` section is your review material: the actual hunks, for
+        the files shown in full.
+
+      YOUR JOB:
+      1) Review the hunks in the UNIFIED DIFF section for real problems a careful
+         reviewer would flag, in priority order — correctness bugs first (logic
+         errors, off-by-one, null/undefined handling, wrong branch, race, resource
+         leak, unhandled error, security), then simplification/reuse (duplicated
+         or needlessly complex code an existing helper or smaller form replaces),
+         then efficiency, then test coverage, then style. Read the actual changed
+         lines. When you need surrounding context to be sure, use your tools to
+         read the file around the hunk — do not guess. NEVER invent a problem to
+         have something to say, and NEVER report a finding for a STAT-ONLY file
+         whose changes you cannot see.
+         For every finding, cite the file path and a real line number from the NEW
+         side of the diff (the `+` lines / the `@@ … +start,count @@` hunk header),
+         and choose a severity deliberately:
+           - high   = must fix before the PR: a correctness/security/data-loss bug.
+           - medium = should fix: a likely bug, a real smell, or a missing test for
+                      risky new behavior.
+           - low    = nit: style, naming, a minor simplification.
+         Choose a short lowercase `category` (e.g. correctness, simplification,
+         efficiency, security, test-coverage, style). Keep each finding `summary`
+         to one concrete sentence (what is wrong and where), not a lecture.
+
+      2) Set `coverage` to an HONEST one-line note of what you actually reviewed,
+         taken from the META. If nothing was bounded: "Complete: all N files
+         reviewed in full." If the diff was bounded: state it plainly and name the
+         gap, e.g. "Bounded: 21 of 40 files reviewed in full; 19 stat-only, not
+         read line-by-line: <files>." NEVER imply you read a file you did not.
+
+      3) Set `readiness` to exactly one of:
+           - "ready"     = no high-severity findings AND coverage was sufficient to
+                           judge the branch (a bounded read that leaves changed
+                           files unreviewed is NOT sufficient to certify "ready").
+           - "not_ready" = there is a high-severity finding, OR there are no
+                           changes to open a PR with, OR coverage was too
+                           incomplete to certify the branch.
+
+      4) Set `summary` to ONE line that is both the headline and the calling
+         agent's next action: e.g. "Ready to open the PR — 12 files, no blocking
+         findings" or "Not ready — fix 2 high-severity findings in src/cli.ts
+         before the PR" or "Not ready — bounded review left 19 files unread;
+         review them before merging." This line tells the caller what to do next.
+
+      EMPTY / NO-CHANGES DIFF: if META shows files_changed = 0 (the branch has no
+      diff vs the base), return an EMPTY findings list, set `readiness` to
+      "not_ready", set `coverage` to "No diff to review.", and set `summary` to an
+      honest note that there is nothing to open a PR with for this base (e.g. "No
+      changes between HEAD and base 'main' — nothing to open a PR with."). Do NOT
+      fabricate a finding.
+
+      Base under review: "{{ input.base }}"
+
+      COLLECTED DIFF:
+      {{ steps.collect_diff.stdout }}
+    output: readiness.schema.ts

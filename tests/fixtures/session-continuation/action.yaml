@@ -1,0 +1,31 @@
+name: session-continuation
+description: >-
+  Continuation-skip fixture. The recon step carries the skip condition and
+  compiles to a native branch: it runs on a fresh
+  session (prior == null) or a stale revision, and is SKIPPED when a prior
+  SessionState's surface_map.revision_hash matches the CLI-injected `revision`
+  (git HEAD) and the immediately prior turn belongs to edge-walk. The report step
+  always runs so a skipped recon never breaks the chain. `revision`, `prior`, and
+  `prior_workflow` are injected by the CLI, never declared here.
+
+steps:
+  # Discovery step — the expensive work the continuation must NOT repeat when the
+  # revision is unchanged. Its condition is the production predicate.
+  - name: recon
+    type: agent
+    condition: "prior == null || prior.surface_map == null || prior_workflow != 'edge-walk' || prior.surface_map.revision_hash != revision"
+    prompt: |
+      Reply with a JSON object: a `note` field whose value is the single word
+      "reconnaissance". Nothing else.
+    output:
+      note: string
+
+  # Cheap final step — always runs; its output is the run's result.
+  - name: report
+    type: agent
+    depends: recon
+    prompt: |
+      Reply with a JSON object: a `summary` field whose value is the single
+      short sentence "Session is up to date." Nothing else.
+    output:
+      summary: string

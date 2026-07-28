@@ -1,0 +1,127 @@
+---
+title: "Security and storage"
+sidebarTitle: "Security and storage"
+description: "What Navi agents can read, which surfaces can write or execute, how secrets are handled, and where sessions are stored."
+keywords: ["security", "read-only", "command steps", "secrets", "storage", "NAVI_DB"]
+---
+
+Four boundaries matter:
+
+- Model-driven steps receive only the read tools declared by the flow.
+- Authored `type: command` steps are trusted local code.
+- `navi install` writes only its documented links and ownership receipt.
+- Session state lives in a ledger outside the repository.
+
+Use this page to inspect those boundaries before running an external flow.
+
+## Choose which execution surfaces to trust
+
+| Surface | What it can do | Who authorizes it |
+|---|---|---|
+| Agent step | Use only its declared read tools | The flow's `tools` allowlist |
+| Command step | Run its authored shell command with the Navi process's OS permissions and environment | The person who installs or runs that flow |
+| `navi install` | Create two fixed symlinks, an ownership receipt, and missing parent directories | The person running `install` |
+| Session ledger | Write run and session state to the selected LibSQL database | Every stateful Navi invocation |
+
+Allow agent steps to use only these read tools:
+
+```text
+view
+search_content
+find_files
+mastra_workspace_file_stat
+```
+
+An agent step with no `tools` list receives no tools. The read-only workspace
+keeps write, edit, delete, shell, process, and directory-creation tools out of
+the agent toolset.
+
+<Warning>
+  A flow's `type: command` step is trusted code, not an agent tool. It runs
+  through the system shell, inherits the current working directory and process
+  environment, and does not pass through the workspace path guard. Review an
+  external `action.yaml` and its adjacent scripts before running it.
+</Warning>
+
+Inspect a flow without executing it:
+
+```bash
+npx --no-install navi-cli run <flow> --shape --json
+```
+
+The resolved plan lists every agent tool and every command step.
+
+## Keep reads inside the selected workspace
+
+Use the current directory or `-w` to set the read boundary. Navi resolves
+existing ancestors and symlink targets before checking containment, so a
+harmless-looking link cannot escape the workspace.
+
+The read tools refuse:
+
+- `.git`, `node_modules`, and `external` path segments
+- `navi.db` and its journal, WAL, and shared-memory sidecars
+- `.env` and `.env.*`, except the public `.env.example` template
+- absolute paths or traversal paths outside the workspace
+- broad native grep calls with `includeHidden=true`
+
+Search patterns are not treated as paths. A search for the text `.env` is
+allowed; reading an `.env` file is not.
+
+## Pass secrets through the process environment
+
+Put provider keys in the process environment or `.env`. Navi reads `.env`
+before storage and model initialization, and a variable already set in the
+process wins over the file. Startup logs only how many variables were loaded,
+not their names or values.
+
+The path guard excludes `.env` files from native and deterministic search
+routes, including a symlink whose target is `.env`. Provider adapters still
+receive the selected API key from the process environment.
+
+Because command steps inherit that same environment, run only flows whose
+command steps you trust.
+
+## Know what `install` writes
+
+Run `navi install -w <project>` only when you want these three owned targets:
+
+```text
+.agents/skills/navi-interop  -> Navi's interop skill
+.agents/bin/navi             -> Navi's project-local launcher
+.navi-interop-install.json   ownership receipt
+```
+
+The receipt is created with user-only file permissions. Navi refuses to replace
+a regular file, a foreign link, a receipt from another installation, or a target
+reached through an escaped or symlinked parent.
+
+`navi uninstall` removes links only when they still match the receipt. It removes
+recorded parent directories only when they are empty, and preserves files it
+does not own.
+
+## Keep session state outside the project
+
+Expect the default ledger at:
+
+```text
+~/.navi-home/navi.db
+```
+
+One ledger serves every workspace. `-w` changes which repository Navi reads; it
+does not select another ledger.
+
+Use a temporary ledger when you do not want to keep the run:
+
+```bash
+npx --no-install navi-cli --ephemeral "<query>"
+```
+
+`--ephemeral` uses a temporary database file and removes it when the process
+exits.
+
+`NAVI_DB` can select another database URL. Navi refuses in-memory SQLite URLs
+because its storage clients need one shared file.
+
+See [Sessions and outcomes](/sessions-and-outcomes) for the state kept in the
+ledger.

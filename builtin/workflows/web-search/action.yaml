@@ -1,0 +1,80 @@
+name: web-search
+description: >-
+  Answer a question from the live web via Tavily, citing every source. Requires
+  TAVILY_API_KEY; without it, the flow reports that the web was not searched
+  instead of inventing an answer or sources.
+
+args:
+  query:
+    required: true
+    description: The question to search the web for.
+
+steps:
+  # The backend is one command step: the shell handles key presence without a
+  # condition/dependency fan-out. Key safety: $TAVILY_API_KEY
+  # is only ever a shell variable *name* — never {{ }}-interpolated, never printed
+  # by --shape (which shows just a char count), and curl runs silent (-s) with no
+  # -v/--trace/--dump-header, so the Authorization header can never reach the
+  # captured stdout/stderr. Query safety: the query flows through a single-quoted
+  # heredoc straight into node's stdin (NOT via $()-nested substitution, which
+  # macOS /bin/sh mis-parses on an odd quote), so an embedded quote/$/backtick is
+  # data, never shell; node's JSON.stringify does the JSON escaping (node is
+  # guaranteed present — navi is a node CLI; jq is not) and pipes the body to
+  # `curl -d @-`. The Tavily response is this step's stdout.
+  - name: search_tavily
+    type: command
+    command: |
+      if [ -z "$TAVILY_API_KEY" ]; then
+        printf '{"skipped":"no_TAVILY_API_KEY"}'
+        exit 0
+      fi
+      node -e 'let q="";process.stdin.on("data",d=>q+=d).on("end",()=>process.stdout.write(JSON.stringify({query:q.replace(/\n$/,""),search_depth:"basic",max_results:5,include_answer:true})))' <<'__NAVI_QUERY_EOF__' | curl -s -X POST https://api.tavily.com/search -H "Authorization: Bearer $TAVILY_API_KEY" -H "Content-Type: application/json" -d @-
+      {{ input.query }}
+      __NAVI_QUERY_EOF__
+
+  # Synthesize from the command step's Tavily stdout only — no workspace tools
+  # (absent tools: ⇒ ZERO). The web was already searched (or honestly skipped);
+  # giving repo tools would invite ungrounded "research" of local files for a
+  # live-web answer. Zero-tool compile WARNING is expected (shape.ts).
+  - name: synthesize
+    type: agent
+    depends: search_tavily
+    prompt: |
+      A web-search backend was asked: "{{ input.query }}"
+
+      Its raw stdout (JSON — may be a skip sentinel, a Tavily error envelope, or
+      a Tavily result set) is:
+      {{ steps.search_tavily.stdout }}
+
+      Decide from that JSON. In every non-result scenario the web was NOT searched, so
+      you MUST NOT invent an answer or any sources — but state the REAL reason, so
+      "no key" and "key rejected" are never confused:
+
+      - If it has a "skipped" field (e.g. {"skipped":"no_TAVILY_API_KEY"}), the key
+        was absent and no search was attempted. Return exactly:
+          answer: "Blocked: no TAVILY_API_KEY and no provider-native search wired
+          for this model — the web was not searched, so I cannot answer this from
+          live results."
+          sources: []
+
+      - Else if it has a "detail.error"/"error"/"detail"/"message" field, or is
+        otherwise a Tavily ERROR envelope (a key WAS present but the search failed —
+        e.g. an invalid/expired/wrong-region key returns 401 Unauthorized), report
+        that honestly, quoting the reason Tavily gave so a present-but-bad key is
+        never misread as a missing one. Return exactly:
+          answer: "Blocked: the web search failed (<the error text from the JSON,
+          verbatim>) — the web was not searched, so I cannot answer this from live
+          results. If this is an auth error, TAVILY_API_KEY is set but was rejected;
+          check the key itself, not that it is missing."
+          sources: []
+
+      - Else if it is empty or otherwise NOT a valid Tavily result set, treat it as
+        a failed search and return the same "web search failed" Blocked answer as
+        above (name what you saw), with sources: [].
+
+      - Otherwise it is a valid result set: answer the question using ONLY the
+        returned results. Put the answer in `answer` and every source URL you
+        actually used in `sources`. Never cite a URL not present in the results.
+    output:
+      answer: string
+      sources: string[]

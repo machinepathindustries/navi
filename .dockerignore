@@ -1,0 +1,35 @@
+# Docker receives only the files needed to create the npm package and the
+# cold-start harness. In particular, local keys, ledgers, git history, caches,
+# and node_modules never enter the build context.
+**
+
+!package.json
+!README.md
+!LICENSE
+!.env.example
+
+!bin/
+!bin/**/*.mjs
+!bin/navi-local
+
+!src/
+!src/**/*.ts
+
+!builtin/
+!builtin/**/*.md
+!builtin/**/*.yaml
+!builtin/**/*.mjs
+!builtin/**/*.ts
+
+!agent/
+!agent/skills/
+!agent/skills/**/*.md
+
+!config/
+!config/tested-models.json
+
+!docker/
+!docker/coldstart/
+!docker/coldstart/Dockerfile
+!docker/coldstart/checks.sh
+!docker/coldstart/live-check.sh

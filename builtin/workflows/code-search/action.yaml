@@ -1,0 +1,65 @@
+name: code-search
+description: >-
+  Answer a question about THIS repository with cited file:line evidence by
+  running the RLM search loop (INDEX → FILTER → MAP → REDUCE) over the
+  workspace. Every citation is a line actually read; an unanswerable question
+  gets an honest "Not found", never a fabricated source. The runnable form of
+  the bare `navi "<query>"` search — the workflow navi uses to search itself.
+
+args:
+  question:
+    required: true
+    description: The codebase question to answer with cited evidence.
+
+# One prose-disciplined agent loop. `skills.only` force-pops the code-search skill's
+# FULL body into this step's instructions at compile time (compile.ts
+# resolvePoppedSkills), so the RLM procedure, the near-budget wrap-up rule, and
+# the honesty guards are GUARANTEED present — never left to a cheap model
+# choosing to load them. Explicit read-only `tools:` (READ_ONLY_WORKSPACE_TOOLS —
+# absent tools: is now ZERO, not all): grep/read/search surface for the RLM loop;
+# shell is excluded. The vendored-code guard (src/mastra/index.ts) still keeps
+# the loop out of node_modules/external/.git structurally. The prompt below
+# carries ONLY task framing + the output contract; the skill carries the how
+# (cardinal rule 6: docs/skills carry facts, prompts carry task).
+steps:
+  - name: search
+    type: agent
+    tools: [view, search_content, find_files, mastra_workspace_file_stat]
+    skills:
+      only: [code-search]
+    prompt: |
+      Answer this question about the repository you are searching:
+
+      "{{ input.question }}"
+
+      Run the RLM loop from the code-search skill (INDEX → FILTER → MAP →
+      REDUCE) quietly — the loop is internal discipline, not visible ceremony.
+      Then return this workflow's two-field structured output:
+
+      - `answer`: the direct answer, with inline `file:line` citations for
+        every claim. Fold your honest confidence (high / medium / low) into
+        this text. If the repository genuinely does not contain the answer, say
+        so plainly here as a "Not found" (or "Blocked" if nothing could be
+        searched at all) — do NOT lower a real gap into a confident guess.
+        But do NOT bail to "Not found" on a shallow pass: before concluding it,
+        run at least one real INDEX pass and try casing/notation variants of
+        the target nouns (a doc often states a concept without the exact marker
+        you typed — content under a numbered heading rather than a `§x.y`
+        label, a symbol spelled differently). A "Not found" after a single
+        empty grep is usually a false negative. Only after a genuine search
+        comes up empty — and then honestly, never by inventing a source.
+      - `citations`: one entry per source, each formatted
+        `path:line — what this line shows`. Every entry MUST be a line you
+        actually opened and read during this run — never a file you only saw
+        named in a grep hit, and never inferred from a path or a filename. If
+        you could not verify a claim against real lines, drop the citation and
+        weaken the answer to match; a shorter honest answer beats a padded one.
+
+      This structured output SUPERSEDES the `### Answer / ### Sources /
+      ### Confidence` markdown template in the skill — return the object, not
+      the markdown headers. If nothing could be searched or nothing was found,
+      return the honest answer above and an EMPTY `citations` list — never
+      invent a source to fill the shape.
+    output:
+      answer: string
+      citations: string[]

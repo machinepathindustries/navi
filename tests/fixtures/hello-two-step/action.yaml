@@ -1,0 +1,29 @@
+name: hello-two-step
+description: Extract a description + keywords for a topic, then summarize them.
+
+args:
+  topic:
+    required: true
+    description: The subject to describe.
+
+steps:
+  - name: extract
+    type: agent
+    prompt: |
+      The topic is "{{ input.topic }}".
+      Give a one-sentence plain-language description of it, and list 2-3 short
+      keywords that relate to it.
+    output:
+      description: string
+      keywords: string[]
+
+  - name: summarize
+    type: agent
+    depends: extract
+    prompt: |
+      Topic: "{{ input.topic }}".
+      Earlier description: {{ steps.extract.description }}
+      Keywords: {{ steps.extract.keywords }}
+      Write a single friendly sentence that summarizes this topic for a newcomer.
+    output:
+      summary: string

@@ -1,0 +1,159 @@
+{
+  "schema_version": "navi.tested-models.v1",
+  "purpose": "Compatibility test targets, not a runtime allowlist.",
+  "runtime": {
+    "selector": "NAVI_MODEL",
+    "format": "provider/model",
+    "policy": "open",
+    "default_provider": "deepseek",
+    "router": {
+      "name": "Mastra Model Router",
+      "url": "https://mastra.ai/blog/model-router"
+    },
+    "provider_adapters": {
+      "name": "AI SDK providers",
+      "url": "https://ai-sdk.dev/providers/ai-sdk-providers"
+    }
+  },
+  "providers": [
+    {
+      "id": "deepseek",
+      "lab": "DeepSeek",
+      "classification": "direct",
+      "env_keys": [
+        "DEEPSEEK_API_KEY"
+      ],
+      "router_prefix": "deepseek/",
+      "models": {
+        "quick": "deepseek/deepseek-v4-flash",
+        "workflow": "deepseek/deepseek-v4-pro"
+      },
+      "catalog_url": "https://api-docs.deepseek.com/api/list-models",
+      "model_urls": {
+        "quick": "https://api-docs.deepseek.com/api/list-models",
+        "workflow": "https://api-docs.deepseek.com/api/list-models"
+      },
+      "compatibility": {
+        "metadata_host": "api.deepseek.com",
+        "list_path": "/models",
+        "auth": "bearer"
+      }
+    },
+    {
+      "id": "openai",
+      "lab": "OpenAI",
+      "classification": "direct",
+      "env_keys": [
+        "OPENAI_API_KEY"
+      ],
+      "router_prefix": "openai/",
+      "models": {
+        "quick": "openai/gpt-5.6-luna",
+        "workflow": "openai/gpt-5.6-terra"
+      },
+      "catalog_url": "https://developers.openai.com/api/docs/models",
+      "model_urls": {
+        "quick": "https://developers.openai.com/api/docs/models/gpt-5.6-luna",
+        "workflow": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "compatibility": {
+        "metadata_host": "api.openai.com",
+        "list_path": "/v1/models",
+        "auth": "bearer"
+      }
+    },
+    {
+      "id": "anthropic",
+      "lab": "Anthropic",
+      "classification": "direct",
+      "env_keys": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "router_prefix": "anthropic/",
+      "models": {
+        "quick": "anthropic/claude-sonnet-5",
+        "workflow": "anthropic/claude-sonnet-5"
+      },
+      "catalog_url": "https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5",
+      "model_urls": {
+        "quick": "https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5",
+        "workflow": "https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5"
+      },
+      "compatibility": {
+        "metadata_host": "api.anthropic.com",
+        "list_path": "/v1/models",
+        "auth": "anthropic"
+      }
+    },
+    {
+      "id": "google",
+      "lab": "Google",
+      "classification": "direct",
+      "env_keys": [
+        "GOOGLE_GENERATIVE_AI_API_KEY",
+        "GOOGLE_API_KEY"
+      ],
+      "router_prefix": "google/",
+      "models": {
+        "quick": "google/gemini-3.5-flash-lite",
+        "workflow": "google/gemini-3.5-flash-lite"
+      },
+      "catalog_url": "https://ai.google.dev/gemini-api/docs/models",
+      "model_urls": {
+        "quick": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite",
+        "workflow": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite"
+      },
+      "compatibility": {
+        "metadata_host": "generativelanguage.googleapis.com",
+        "list_path": "/v1beta/models",
+        "auth": "google"
+      }
+    },
+    {
+      "id": "xai",
+      "lab": "xAI",
+      "classification": "direct",
+      "env_keys": [
+        "XAI_API_KEY"
+      ],
+      "router_prefix": "xai/",
+      "models": {
+        "quick": "xai/grok-4.5",
+        "workflow": "xai/grok-4.5"
+      },
+      "catalog_url": "https://docs.x.ai/developers/models/grok-4.5",
+      "model_urls": {
+        "quick": "https://docs.x.ai/developers/models/grok-4.5",
+        "workflow": "https://docs.x.ai/developers/models/grok-4.5"
+      },
+      "compatibility": {
+        "metadata_host": "api.x.ai",
+        "list_path": "/v1/models",
+        "auth": "bearer"
+      }
+    },
+    {
+      "id": "openrouter",
+      "lab": "OpenRouter",
+      "classification": "separate",
+      "env_keys": [
+        "OPENROUTER_API_KEY"
+      ],
+      "router_prefix": "openrouter/",
+      "models": {
+        "quick": "openrouter/openai/gpt-5.6-luna",
+        "workflow": "openrouter/openai/gpt-5.6-terra"
+      },
+      "catalog_url": "https://openrouter.ai/models",
+      "model_urls": {
+        "quick": "https://openrouter.ai/openai/gpt-5.6-luna",
+        "workflow": "https://openrouter.ai/openai/gpt-5.6-terra"
+      },
+      "compatibility": {
+        "metadata_host": "openrouter.ai",
+        "list_path": "/api/v1/models",
+        "auth": "bearer"
+      }
+    }
+  ]
+}

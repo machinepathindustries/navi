@@ -1,0 +1,14 @@
+{
+  "event": {
+    "kind": "plan",
+    "task": "Call records arriving dirty from the switch feed (un-normalized numbers, missing duration or direction) are being dropped by ingest. Add call-record repair so salvageable records are cleaned and stored instead of dropped.",
+    "plan": {
+      "claim": "complete",
+      "summary": "Implemented repairCallRecord() in repair.ts: it normalizes both phone numbers to E.164, backfills durationMs from the timestamps, and defaults a missing direction to inbound. Added unit tests in repair.test.ts proving it produces records that pass strict validation. Call-record repair is done.",
+      "citations": [
+        { "uri": "repair.ts", "line_start": 11, "line_end": 19 },
+        { "uri": "repair.test.ts", "line_start": 1, "line_end": 58 }
+      ]
+    }
+  }
+}

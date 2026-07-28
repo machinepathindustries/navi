@@ -1,0 +1,14 @@
+{
+  "event": {
+    "directive_id": "DIRECTIVE_ID_PLACEHOLDER",
+    "evidence": [
+      {
+        "kind": "test_result",
+        "command": "npm test -- handler.integration.test.ts",
+        "exit_code": 0,
+        "claim_supported": true,
+        "fresh_for_revision": "REVISION_PLACEHOLDER"
+      }
+    ]
+  }
+}

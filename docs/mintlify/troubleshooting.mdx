@@ -1,0 +1,135 @@
+---
+title: "Troubleshooting"
+description: "Match a Navi error or symptom to its cause, recovery command, and verification."
+keywords: ["errors", "ripgrep", "API key", "model", "install", "NAVI_DB", "schema"]
+---
+
+Find the message you saw, apply the recovery, then run the verification shown
+with it.
+
+## Install ripgrep when `rg` is missing
+
+Navi could not build its deterministic repository index. It can still ask the
+model, but it labels that answer ungrounded.
+
+Install [ripgrep](https://github.com/BurntSushi/ripgrep#installation), then
+verify and repeat the original question:
+
+```bash
+rg --version
+npx --no-install navi-cli "your original question"
+```
+
+## Configure a missing API key
+
+Navi selected a provider but could not find its key. Set the matching key and
+model, then repeat the command:
+
+```bash
+export DEEPSEEK_API_KEY="<your-key>"
+export NAVI_MODEL="deepseek/deepseek-v4-flash"
+npx --no-install navi-cli "your original question"
+```
+
+The [Providers page](/providers) lists the key names and Navi's tested targets.
+Other models exposed by the installed Mastra router work when the selected model
+has the capabilities the command needs.
+
+## Match a rejected key to its provider
+
+The selected `provider/model` and key variable do not match, or the key lacks
+access to that model. Set only the key for the gateway you chose.
+
+```bash
+export XAI_API_KEY="<your-key>"
+export NAVI_MODEL="xai/grok-4.5"
+npx --no-install navi-cli "your original question"
+```
+
+Match the model's provider prefix to that provider's key. Do not use an
+OpenRouter model ID with a first-party key.
+
+## Select an available model ID
+
+Model IDs are provider-qualified. Open the provider's official model catalog
+from [Providers](/providers), choose an available ID, then confirm the active
+value:
+
+```bash
+printf '%s\n' "$NAVI_MODEL"
+```
+
+## Remove incompatible DeepSeek-only settings
+
+Navi reports either `--thinking/--reasoning-effort are DeepSeek-only` for a
+bare query or `settings.thinking/reasoningEffort are DeepSeek-only` for a flow.
+The command selected another provider while keeping DeepSeek-native settings.
+For a bare query, remove those flags or select a DeepSeek model. For a
+project-owned flow, either select DeepSeek or remove the static settings after
+inspecting the resolved plan:
+
+```bash
+npx --no-install navi-cli run <flow> --shape --json
+```
+
+Navi's built-in flows do not require those static settings. DeepSeek's managed
+model defaults still enable its native reasoning mode when you select a
+DeepSeek model.
+
+## Resolve `not an exact navi-owned link`
+
+The install target already contains a file, directory, foreign symlink, or a
+skill managed by another installer. Navi will not overwrite it.
+
+Choose one owner:
+
+- For Navi's zero-copy link and project-local launcher, remove the other
+  installer's files with that installer, then run `npx --no-install navi-cli install`.
+- For an `npx skills` managed copy, keep that copy and do not run
+  `npx --no-install navi-cli install` at the same target.
+
+Verify the target before retrying:
+
+```bash
+ls -ld .agents/skills/navi-interop .agents/bin/navi
+```
+
+## Repair a dangling install link
+
+The Navi package directory moved after installation. Run `uninstall`, then
+install again from the new location:
+
+```bash
+npx --no-install navi-cli uninstall -w /absolute/path/to/project
+npx --no-install navi-cli install -w /absolute/path/to/project
+```
+
+## Replace an unsupported in-memory `NAVI_DB`
+
+Navi refuses in-memory SQLite URLs because its storage clients need one shared
+file. Use the default ledger, a file URL, or an ephemeral run:
+
+```bash
+unset NAVI_DB
+npx --no-install navi-cli --ephemeral --version
+```
+
+The default is `~/.navi-home/navi.db`.
+
+## Fix invalid input after exit `4`
+
+The CLI rejected its input before a valid result existed: a required argument
+was missing or the JSON input was invalid. Read the one-line error, then inspect
+the flow's declared arguments:
+
+```bash
+npx --no-install navi-cli help <flow>
+npx --no-install navi-cli run <flow> --shape --json
+```
+
+JSON-typed inputs use `--stdin`; plain positional text cannot fill them.
+
+A malformed `action.yaml` or broken flow wiring exits `1`, not `4`.
+
+If the symptom is not here, run `npx --no-install navi-cli --help` and include the
+exact command, exit code, and stderr when reporting it.

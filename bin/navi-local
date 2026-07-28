@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+# This wrapper is the target of <project>/.agents/bin/navi. Navi's normal
+# packaged-bin rule emits the portable bare command `navi`; a source checkout
+# deliberately has no such global command. Preserve the project-local path
+# explicitly, then execute the canonical package entry.
+case "$0" in
+  /*) invoked="$0" ;;
+  *) invoked="$PWD/$0" ;;
+esac
+
+target=$(readlink "$invoked" 2>/dev/null || printf '%s' "$invoked")
+case "$target" in
+  /*) wrapper="$target" ;;
+  *) wrapper="$(dirname "$invoked")/$target" ;;
+esac
+
+wrapper_dir=$(CDPATH= cd -- "$(dirname -- "$wrapper")" && pwd -P)
+install_root=$(CDPATH= cd -- "$wrapper_dir/.." && pwd -P)
+invoked_dir=$(CDPATH= cd -- "$(dirname -- "$invoked")" && pwd -P)
+invoked_abs="$invoked_dir/$(basename -- "$invoked")"
+project_root=$(CDPATH= cd -- "$invoked_dir/../.." && pwd -P)
+
+NAVI_INVOKED_AS="$invoked_abs" \
+NAVI_INSTALL_ROOT="$install_root" \
+NAVI_PROJECT_ROOT="$project_root" \
+exec "$wrapper_dir/navi.mjs" "$@"

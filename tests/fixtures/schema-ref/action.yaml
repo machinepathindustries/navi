@@ -1,0 +1,17 @@
+name: schema-ref
+description: One agent step whose output references a co-located .ts Zod object schema.
+
+args:
+  target:
+    required: true
+    description: What to review.
+
+steps:
+  - name: review
+    type: agent
+    prompt: |
+      Review "{{ input.target }}".
+      Return a list of findings (each with file, line, severity, summary) and a
+      single overall verdict of GO, REFINE, or REJECT. If you have no specific
+      findings, return an empty findings list and still give a verdict.
+    output: review.schema.ts

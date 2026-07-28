@@ -1,0 +1,21 @@
+{
+  "event": {
+    "directive_id": "DIRECTIVE_ID_PLACEHOLDER",
+    "evidence": [
+      {
+        "kind": "source_location",
+        "uri": "batch-import.ts",
+        "line_start": 14,
+        "line_end": 32,
+        "claim_supported": true
+      },
+      {
+        "kind": "test_result",
+        "command": "npm test -- batch-import.test.ts",
+        "exit_code": 0,
+        "claim_supported": true,
+        "fresh_for_revision": "REVISION_PLACEHOLDER"
+      }
+    ]
+  }
+}

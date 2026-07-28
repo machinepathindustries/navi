@@ -1,0 +1,68 @@
+{
+  "name": "@machinepathindustries/navi",
+  "version": "0.1.0",
+  "description": "A second reader for your coding agent: cited repo answers, reusable flows, and durable gates.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/machinepathindustries/navi.git"
+  },
+  "homepage": "https://machine-path.mintlify.site",
+  "bugs": {
+    "url": "https://github.com/machinepathindustries/navi/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "navi": "bin/navi.mjs",
+    "navi-cli": "bin/navi.mjs"
+  },
+  "files": [
+    "bin/navi.mjs",
+    "bin/navi-local",
+    "src/**/*.ts",
+    "builtin/**/*",
+    "agent/skills/navi-interop/SKILL.md",
+    "config/tested-models.json",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "navi": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit && node scripts/control-flow.mjs && node scripts/doc-citations.mjs",
+    "lint:control-flow": "node scripts/control-flow.mjs",
+    "lint:doc-citations": "node scripts/doc-citations.mjs",
+    "providers:list": "node scripts/provider-compat.mjs --list",
+    "providers:compat": "docker/provider-compat/run.sh",
+    "test": "vitest run",
+    "prepublishOnly": "npm run typecheck && npm test"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "@mastra/core": "^1.53.0",
+    "@mastra/libsql": "^1.17.1",
+    "@mastra/memory": "^1.23.0",
+    "neverthrow": "^8.2.0",
+    "ts-pattern": "^5.9.0",
+    "tsx": "^4.23.1",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": {
+      ".": "1.30.0",
+      "@hono/node-server": "^2.0.5"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+name: evidence-echo
+description: >-
+  Model-free command fixture for the weak-evidence --stdin gate proof (piece 3).
+  Echoes back input.event.directive_id, so a VALID EvidenceEvent that clears the
+  gate is shown reaching the workflow input untouched — keyless (no model call).
+  Garbage evidence never reaches this step: the gate exits 4 before compile.
+
+steps:
+  - name: echo
+    type: command
+    command: printf '%s' "{{ input.event.directive_id }}"

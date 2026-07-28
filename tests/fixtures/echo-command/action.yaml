@@ -1,0 +1,10 @@
+name: echo-command
+description: >-
+  A model-free fixture whose final command step emits plain (non-JSON) text — the
+  negative case for the CLI's command-JSON unwrap: envelope.result must stay the
+  honest {stdout,stderr,exitCode} wrapper, never a guessed parse.
+
+steps:
+  - name: emit
+    type: command
+    command: echo plain-text-not-json

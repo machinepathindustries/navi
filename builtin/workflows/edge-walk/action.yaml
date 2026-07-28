@@ -1,0 +1,268 @@
+name: edge-walk
+description: >-
+  Adversarial edge-walk of a task the parent proposes complete: recon maps the
+  real wiring, expand names the seams the change opens through the seam taxonomy,
+  and the judge independently re-reads the cited evidence and returns a gate with
+  at most one bounded directive. Structurally read-only (no write tools resolved;
+  the vendored-code guard is active). The session continues on -t <session_id>;
+  discovery is skipped only when the immediately prior edge-walk map has the
+  same revision; initial obligation policy: integration-completeness.
+
+# Edge-walk is invoked with `--stdin`, and the entire JSON object binds to
+# `input`; the parent event is read as `{{ input.event }}`. The compiler
+# validates a json arg as z.unknown(), so Mastra's
+# input validation ACCEPTS the stdin object instead of rejecting it as a non-string
+# (a string-typed arg would reject it "expected string, received object" before the
+# first step). The CLI additionally injects `revision` (git HEAD, a model-free
+# subprocess), `prior` (the newest SessionState on -t), and `prior_workflow`
+# (the immediately prior typed turn's workflow) as reserved top-level inputs.
+# Conditions read them as bare values riding through argsSchema's
+# `.passthrough()` alongside the declared `input`.
+args:
+  input:
+    type: json
+    required: true
+
+steps:
+  # RECON — locate the real entry points and consumers for the task and the
+  # parent's plan as file:line facts only. skills.only
+  # force-pops code-search (the INDEX→FILTER→MAP→REDUCE search loop + citation
+  # contract) and repository-recon (the wiring mission) into this agent's
+  # instructions. tools are the read-only workspace triad; the vendored-code guard
+  # still fences node_modules/external. maxSteps 18 leaves room for a full trace.
+  #
+  # The condition is the continuation-skip predicate, compiling to a native
+  # branch: run on a fresh session, a session with no
+  # surface map, a map whose immediately prior turn belongs to another workflow,
+  # or a stale revision. SKIP only when edge-walk itself just produced the map at
+  # this revision.
+  - name: recon
+    type: agent
+    condition: "prior == null || prior.surface_map == null || prior_workflow != 'edge-walk' || prior.surface_map.revision_hash != revision"
+    tools: [search_content, view, find_files]
+    skills:
+      only: [code-search, repository-recon]
+    output: recon.schema.ts
+    maxSteps: 18
+    prompt: |
+      You are the RECON step of an adversarial code review. Your loaded skills
+      (code-search + repository-recon) carry the method — apply them. Map the
+      WIRING around this task's subject as file:line facts ONLY. Do not judge
+      whether the work is correct or complete; that is a later step's job.
+
+      Parent event under review (a plan, an interpretation, or an evidence return):
+      {{ input.event }}
+
+      Session of record so far — may be empty on a fresh session. When present, its
+      `task` and prior surface_map name the subject even if the event above is a
+      bare evidence return:
+      {{ prior }}
+
+      Establish each of these, every claim carrying a real file:line you actually
+      read (never a plausible guess):
+      - the production trigger(s)/entry point(s) that reach the subject at RUNTIME
+        — the command, route, handler, or job, not just the subject's own module;
+      - the direct callers and consumers of the subject symbol (a caller that is
+        only a unit test IS a caller — say so in its note);
+      - the parent's claimed location(s): its plan citations, or the evidence
+        uris, re-read so your note reflects what each location actually shows;
+      - `claimed_on_traced_path`: whether a trace FORWARD from a real trigger
+        reaches the claimed work. A function's own definition and its own unit
+        test are NOT evidence that anything calls it — if nothing on a runtime
+        path reaches it, this is false;
+      - any second path that reaches the same externally visible effect WITHOUT
+        passing through the subject (a bypass).
+
+      Anything you searched for and could not confirm within budget goes in
+      `not_found` as an explicit marker — never guess it into existence, never
+      drop it silently.
+
+      Every citation carries a single integer `line` — the one line you actually
+      read — never a `line_start`/`line_end` pair. Return the ReconOutput shape
+      with real values, nothing else.
+
+  # EXPAND — take the task past its literal wording and build the SurfaceMap
+  # through the seam taxonomy. skills.only force-pops
+  # seam-taxonomy (the twelve seam kinds + their cues + the prioritize/flag-unknowns
+  # discipline). Read-only tools; maxSteps 14. Same continuation-skip condition as
+  # recon, so the pair skips together on an unchanged revision. depends: recon.
+  #
+  # `revision_hash` MUST be set from the injected `revision` — that stored value is
+  # what the NEXT run's skip predicate compares against, so the prompt states it
+  # verbatim via {{ revision }} interpolation (the compiler substitutes it before
+  # the model sees the prompt; the model only has to copy it through).
+  - name: expand
+    type: agent
+    condition: "prior == null || prior.surface_map == null || prior_workflow != 'edge-walk' || prior.surface_map.revision_hash != revision"
+    tools: [search_content, view]
+    skills:
+      only: [seam-taxonomy]
+    output: surface-map.schema.ts
+    maxSteps: 14
+    depends: recon
+    prompt: |
+      You are the EXPAND step. Your loaded skill (seam-taxonomy) carries the seam
+      vocabulary and the prioritize / flag-unknowns discipline — apply it.
+
+      Recon mapped the wiring (file:line facts):
+      {{ steps.recon }}
+
+      Parent event under review:
+      {{ input.event }}
+
+      Session of record so far (may be empty):
+      {{ prior }}
+
+      Take this task PAST its literal wording. Using the seam kinds, decide which
+      real seams this change opens — pick the seam(s) with the strongest concrete
+      cue and the highest blast radius for THIS task; do not checklist every kind.
+      Build the surface map. Every entry of `surfaces`, `seams`, and `unknowns` is
+      a SINGLE PLAIN STRING — one sentence — NOT an object and never nested:
+      - `surfaces`: the concrete code locations in play, each a string like
+        "handler.ts:21-32 — the ingest chain that drops invalid records";
+      - `seams`: each real seam as ONE string, leading with its kind then its
+        concrete cue with file:line, e.g. "orphaned implementation: repairCallRecord
+        (repair.ts:11) is imported only by its own test — no runtime caller reaches
+        it; handler.ts:27 drops the record instead";
+      - `unknowns`: anything you suspect but could not confirm within budget, each
+        as one string — name it; never fabricate it and never silently drop it.
+
+      Set `revision_hash` to EXACTLY this string, copied verbatim — it anchors the
+      session to this revision and drives the continuation-skip on the next run:
+      {{ revision }}
+
+      Always emit the complete SurfaceMap object as your final structured output —
+      every top-level field present — even when `surfaces`/`seams` merely repeat
+      the prior state. Return the SurfaceMap shape with real values, nothing else.
+
+  # JUDGE — the highest-stakes step: independently evaluate the evidence by
+  # re-reading the cited locations, and emit the disposition + at most one bounded
+  # directive in one structured pass. skills.only
+  # force-pops adjudication (claims-are-never-evidence, the five-check weak/strong
+  # test, gate disambiguation, one-directive economy). tools are read-only —
+  # citation verification, never mutation. maxSteps 16 gives the judge room to
+  # re-read cited locations and compose the complete structured result.
+  #
+  # `modelEnv: NAVI_JUDGE_MODEL` and no literal `model:` lets callers opt into a
+  # stronger judge without hardcoding it in the workflow.
+  #
+  # NO condition — the judge ALWAYS runs, including on a continuation-skip where
+  # recon/expand did not (their {{ steps.* }} then interpolate EMPTY; the judge
+  # works from the prior surface_map). depends: expand.
+  - name: judge
+    type: agent
+    tools: [view, search_content]
+    skills:
+      only: [adjudication]
+    output: judge.schema.ts
+    maxSteps: 16
+    modelEnv: NAVI_JUDGE_MODEL
+    depends: expand
+    prompt: |
+      You are the JUDGE step — the highest-stakes step. Your loaded skill
+      (adjudication) carries the method: claims are never evidence, the five-check
+      weak-vs-strong test, gate disambiguation, and the one-directive economy.
+      Apply it exactly. VERIFY by re-reading the cited locations yourself with your
+      tools; never trust the parent's characterization of what a location shows.
+
+      Parent event under judgment:
+      {{ input.event }}
+
+      Session of record so far — may be null on a brand-new session. When present it
+      carries the task, the current surface_map, and any OPEN directive (with the
+      exact evidence that would close it):
+      {{ prior }}
+
+      Recon and expand outputs for THIS run — PRESENT when discovery ran, EMPTY
+      when this is a continuation on an unchanged revision (then work from the
+      prior surface_map above; do not re-derive it):
+        recon:  {{ steps.recon }}
+        expand: {{ steps.expand }}
+
+      Current revision: {{ revision }}
+
+      Decide:
+
+      - If the event is a PLAN/interpretation with NO evidence yet: the seam is
+        unproven. Emit gate DIRECT and exactly ONE directive that names the exact
+        seam and the exact evidence that would close it — a runtime call path from
+        a real trigger to the changed symbol, plus an integration test result
+        fresh for the current revision. `required_evidence` and
+        `completion_criteria` each name a concrete artifact to bring back. Put the
+        directive's id in `blocking_directive_ids`.
+
+      - If the event RETURNS evidence for a directive: match it to the OPEN
+        directive in the session above and apply the five-check test to every item,
+        re-reading each cited file:line yourself. Evidence that only points at a
+        function's own definition, or a unit test of it in isolation, proves the
+        function EXISTS — not that anything calls it: it fails the end-to-end
+        check, so the directive stays OPEN and the gate stays DIRECT (or REPAIR if
+        the evidence itself shows a concrete defect). Only when an item passes ALL
+        five checks — an inspectable call site on a real runtime path AND a test
+        result fresh for the current revision — do you CLEAR: empty
+        `blocking_directive_ids`, and record the now-satisfied directive with ONE
+        of exactly two shapes — EITHER carry it in `directives` with status
+        `satisfied` and its ORIGINAL `required_evidence` and `completion_criteria`
+        PRESERVED VERBATIM from the session's open directive (a satisfied directive
+        still stands on the exact terms that closed it — never blank them), OR
+        OMIT it from `directives` entirely (its history lives in the session of
+        record; the live `directives` array is for what is still OPEN). NEVER a
+        third shape: a `satisfied` directive with empty `required_evidence` or
+        `completion_criteria` is malformed — both are schema-required (≥1), so
+        emptying them is a loud emission failure, not a CLEAR.
+
+      Directive ids: if the session already has an open directive, KEEP its id (do
+      not mint a new one), so the loop stays on one thread; only mint an id for a
+      brand-new directive (e.g. "d-<short-slug>-1"). Default to ONE directive;
+      more than one only with a stated reason in that directive's `reason`.
+
+      Emit the full composite in ONE pass, with real values:
+      - the GateDecision fields: gate, reason, blocking_directive_ids,
+        non_blocking_risks, human_escalation (null unless a human must decide),
+        confidence (0..1);
+      - `directives`: the directive(s), each a COMPLETE object — id, type,
+        priority, severity ("blocking" | "non_blocking"), status ("open" while
+        unmet, "satisfied" once cleared), reason, action, targets,
+        required_evidence (≥1), completion_criteria (≥1), stop_conditions,
+        issued_at (an ISO-8601 string). Every directive you emit — OPEN or
+        `satisfied` — MUST carry a non-empty `required_evidence` AND a non-empty
+        `completion_criteria`; a satisfied one reuses the exact terms it was
+        closed against (see the CLEAR rule above). If a directive has become
+        satisfied and you have nothing left to require, OMIT it from the array
+        rather than emit it with empty arrays — never `required_evidence: []` or
+        `completion_criteria: []`;
+      - `findings`: finding snapshots, or [] if none — and every finding you DO
+        emit MUST carry at least one item in its `evidence` array: a finding
+        stands on the artifact it points at, so a finding with nothing
+        inspectable is a claim, not a finding — omit it rather than emit an
+        evidence-less finding;
+      - omit `surface_map` (the session already carries it).
+
+      Emit that full composite as a SINGLE object at the root — one object
+      carrying the required fields gate, reason, blocking_directive_ids,
+      non_blocking_risks, human_escalation, confidence, directives, and
+      findings; never a bare array, never a fragment of the composite. Keep the
+      two categories distinct: `directives` and `findings` are schema-required
+      arrays — emit them ALWAYS, `[]` when there is nothing, never dropped;
+      `surface_map` is the sole omitted-entirely member — it belongs in the
+      object only when it carries real content, and for this step it does not
+      (the session already carries it, as just above), so leave its key out — never
+      stand an empty `{}` in its place.
+
+      For any optional field you have nothing to put in — a finding's `file`,
+      `line`, or `suggested_resolution` — omit the key entirely; never emit an
+      explicit `null`.
+
+      The same rule governs an evidence item's `command` and `uri`, and they are
+      kind-specific: `command` belongs ONLY to a `command_result`/`test_result`
+      kind (the shell or test line that produced the result); `uri` belongs ONLY
+      to a real file location. When an item has no such value — a
+      `source_location` or `call_path` has no command, an evidence item you
+      cannot cite to a real path has no uri — OMIT that key entirely; never write
+      `command: ""` or `uri: ""` (an empty string is not a value).
+
+      An evidence citation's `fresh_for_revision`, when present, is the git
+      revision-hash STRING the location was read at — never `true`/`false`;
+      omit it when unsure.
+
+      Never invent evidence; prefer an honest unresolved to a false CLEAR.

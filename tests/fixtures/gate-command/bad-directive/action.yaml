@@ -1,0 +1,12 @@
+name: gate-command-bad-directive
+description: >-
+  Negative model-free fixture: the final output IS a valid GateDecision (so the
+  whisper path activates) but carries a MALFORMED sibling `directives` array (a
+  directive with only an id). Proves the CLI's liberal extraction is loud, not
+  silent: a present-but-invalid judgment array is exit 1, never a quiet drop.
+
+steps:
+  - name: judge
+    type: command
+    command: >-
+      printf '%s' '{"gate":"DIRECT","reason":"malformed sibling directive","blocking_directive_ids":[],"non_blocking_risks":[],"human_escalation":null,"confidence":0.5,"directives":[{"id":"only-an-id"}]}'

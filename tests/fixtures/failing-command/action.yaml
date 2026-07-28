@@ -1,0 +1,7 @@
+name: failing-command
+description: A model-free fixture whose command exits non-zero.
+
+steps:
+  - name: fail
+    type: command
+    command: node -e "process.stderr.write('fixture failed'); process.exit(7)"

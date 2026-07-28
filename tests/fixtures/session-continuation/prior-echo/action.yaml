@@ -1,0 +1,10 @@
+name: prior-echo
+description: >-
+  Model-free command fixture proving the CLI injects the prior SessionState and
+  immediately prior workflow into workflow input on -t. Without either reserved
+  input, stdout differs and the continuation test fails without a model call.
+
+steps:
+  - name: echo
+    type: command
+    command: printf '%s|%s' "{{ prior.task }}" "{{ prior_workflow }}"

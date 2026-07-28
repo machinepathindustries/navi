@@ -1,0 +1,98 @@
+---
+title: "Connect your coding agent"
+sidebarTitle: "Connect your agent"
+description: "Add Navi's interop skill and project-local launcher without copying either one."
+keywords: ["agent skills", "install", "symlink", "npx skills"]
+---
+
+Run Navi's installer from the project you want your coding agent to review:
+
+```bash
+npm install --save-dev @machinepathindustries/navi
+npx --no-install navi-cli install
+```
+
+The installer creates two symlinks and one ownership receipt:
+
+| Path | Purpose |
+|---|---|
+| `.agents/skills/navi-interop` | Teaches compatible coding agents when and how to call Navi |
+| `.agents/bin/navi` | Gives the agent a launcher tied to this project dependency |
+| `.navi-interop-install.json` | Records exactly what Navi owns so removal is safe |
+
+The skill and launcher remain in the installed package. Navi does not copy
+either file into your project, so package updates cannot leave a stale second
+copy behind.
+
+Verify the project-local launcher:
+
+```bash
+./.agents/bin/navi --version
+```
+
+To connect a different project, pass its path:
+
+```bash
+npx --no-install navi-cli install -w /path/to/project
+```
+
+The symlink installer is supported on macOS and Linux.
+
+## Remove Navi's links
+
+From the connected project:
+
+```bash
+npx --no-install navi-cli uninstall
+```
+
+Or name another project:
+
+```bash
+npx --no-install navi-cli uninstall -w /path/to/project
+```
+
+Navi removes only links that still match its ownership receipt. It leaves
+foreign files, changed links, and non-empty directories alone.
+
+## Alternative: let the Skills CLI manage the skill
+
+Use this route when you want `npx skills` to own agent discovery instead of
+Navi's symlink installer:
+
+```bash
+npx skills add \
+  https://github.com/machinepathindustries/navi/tree/main/agent/skills/navi-interop \
+  --skill navi-interop \
+  --agent universal \
+  --yes
+```
+
+This installs the interop skill and its lockfile. It does not install Navi or
+create `.agents/bin/navi`, so keep the project dependency:
+
+```bash
+npm install --save-dev @machinepathindustries/navi
+npx --no-install navi-cli --version
+```
+
+Without the symlink launcher, the interop skill calls the project dependency
+without downloading another copy:
+
+```bash
+npm exec --offline --package=@machinepathindustries/navi -- navi-cli
+```
+
+<Warning>
+  Choose one owner for `navi-interop` in each project. Navi's installer owns the
+  symlink and receipt; `npx skills` owns a managed copy and lockfile.
+</Warning>
+
+Remove a Skills CLI installation with the same tool:
+
+```bash
+npx skills remove navi-interop --yes
+```
+
+Next, [ask a repository question, judge a decision, or check a completion
+claim](/ask-decide-check).

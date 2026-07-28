@@ -1,0 +1,74 @@
+---
+title: "Choose a model provider"
+sidebarTitle: "Providers"
+description: "Route Navi through a direct model provider or an intentional proxy."
+keywords: ["providers", "models", "DeepSeek", "OpenAI", "Anthropic", "Google", "xAI", "OpenRouter"]
+---
+
+Navi uses the
+[Mastra Model Router](https://mastra.ai/blog/model-router) to turn a
+`provider/model` ID into the corresponding adapter from
+[AI SDK providers](https://ai-sdk.dev/providers/ai-sdk-providers). Set the
+provider's API key and choose the model with `NAVI_MODEL`.
+
+Navi does not maintain a runtime allowlist. Any model the installed Mastra
+router supports can be selected when its provider key is available. The model
+also needs the capabilities used by the command: text generation for a
+repository answer, and tool calling or structured output for some flows.
+
+## Use a direct provider
+
+The table below mirrors Navi's current tested targets in
+[`config/tested-models.json`](https://github.com/machinepathindustries/navi/blob/main/config/tested-models.json).
+Quick targets cover repository questions. Workflow targets cover flows
+that use tools or structured results.
+
+| Lab | API key | Quick target | Workflow target |
+|---|---|---|---|
+| [DeepSeek](https://api-docs.deepseek.com/api/list-models) | `DEEPSEEK_API_KEY` | [`deepseek/deepseek-v4-flash`](https://api-docs.deepseek.com/api/list-models) | [`deepseek/deepseek-v4-pro`](https://api-docs.deepseek.com/api/list-models) |
+| [OpenAI](https://developers.openai.com/api/docs/models) | `OPENAI_API_KEY` | [`openai/gpt-5.6-luna`](https://developers.openai.com/api/docs/models/gpt-5.6-luna) | [`openai/gpt-5.6-terra`](https://developers.openai.com/api/docs/models/gpt-5.6-terra) |
+| [Anthropic](https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5) | `ANTHROPIC_API_KEY` | [`anthropic/claude-sonnet-5`](https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5) | [`anthropic/claude-sonnet-5`](https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5) |
+| [Google](https://ai.google.dev/gemini-api/docs/models) | `GOOGLE_GENERATIVE_AI_API_KEY` | [`google/gemini-3.5-flash-lite`](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite) | [`google/gemini-3.5-flash-lite`](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite) |
+| [xAI](https://docs.x.ai/developers/models/grok-4.5) | `XAI_API_KEY` | [`xai/grok-4.5`](https://docs.x.ai/developers/models/grok-4.5) | [`xai/grok-4.5`](https://docs.x.ai/developers/models/grok-4.5) |
+
+Start with the default DeepSeek quick target:
+
+```bash
+export DEEPSEEK_API_KEY="<your-key>"
+export NAVI_MODEL="deepseek/deepseek-v4-flash"
+npx --no-install navi-cli "Where is retry behavior configured?"
+```
+
+To use another direct provider, set the API key and quick target from the same
+row. Use the workflow target when you want the tested selection for a flow:
+
+```bash
+export NAVI_MODEL="deepseek/deepseek-v4-pro"
+npx --no-install navi-cli run founder "Should this change ship?"
+```
+
+You can put these variables in the project `.env` file instead of exporting
+them. A variable already set in the shell takes precedence.
+
+## Use OpenRouter only when you want a proxy
+
+OpenRouter is a separate route with its own key, billing account, and model ID.
+Choose it only when you intend to proxy the request instead of calling a model
+vendor's direct gateway.
+
+| Route | API key | Quick target | Workflow target |
+|---|---|---|---|
+| [OpenRouter](https://openrouter.ai/models) | `OPENROUTER_API_KEY` | [`openrouter/openai/gpt-5.6-luna`](https://openrouter.ai/openai/gpt-5.6-luna) | [`openrouter/openai/gpt-5.6-terra`](https://openrouter.ai/openai/gpt-5.6-terra) |
+
+```bash
+export OPENROUTER_API_KEY="<your-key>"
+export NAVI_MODEL="openrouter/openai/gpt-5.6-luna"
+npx --no-install navi-cli "Where is retry behavior configured?"
+```
+
+Keep the `openrouter/` prefix on this route. It is not interchangeable with the
+direct OpenAI ID.
+
+The model manifest is the machine-readable source for Navi's compatibility
+test targets; it does not restrict what the router can run. Use
+[Troubleshooting](/troubleshooting) when a key or model selection is rejected.

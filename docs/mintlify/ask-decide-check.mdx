@@ -1,0 +1,107 @@
+---
+title: "Answer, decide, and verify"
+description: "Answer a repository question, make a grounded decision, or verify a completion claim."
+keywords: ["ask", "founder", "check", "edge-walk", "session"]
+---
+
+Start with what you need to know: a fact from the repository, whether an
+approach should proceed, or whether the work is actually done.
+
+| Use Navi when you need to… | Command | A useful result gives you… |
+|---|---|---|
+| **Ask** what the repository does | `npx --no-install navi-cli "<question>"` | An answer with `path:line` evidence |
+| **Decide** whether an approach should proceed | `npx --no-install navi-cli run founder "<decision>"` | `GO`, `REFINE`, or `REJECT`, with the reasoning behind it |
+| **Check** whether a completion claim is earned | `npx --no-install navi-cli check "<claim and evidence>"` | A clear result or one concrete next action |
+
+## Answer a repository question
+
+Use Ask for facts about the current repository:
+
+```bash
+npx --no-install navi-cli "Where is retry behavior configured?"
+```
+
+A grounded result has this shape:
+
+```text
+### Answer
+<answer grounded in the repository>
+
+### Sources
+- `<path>:<line>`
+
+### Confidence
+<level>
+
+── next ──
+✓ Grounding grade passed — the answer stands.
+```
+
+The wording varies by model. The citation and grounding result tell you whether
+the answer is supported. If Navi asks for a deeper read, run the `--deep`
+command it prints before treating the answer as settled.
+
+## Make a grounded decision
+
+Use Founder for a product, design, or implementation decision tied to a real
+artifact:
+
+```bash
+npx --no-install navi-cli run founder \
+  "Should retry behavior become a per-flow setting?"
+```
+
+Founder returns one of three verdicts:
+
+- `GO` — proceed as scoped.
+- `REFINE` — bring back the missing grounding, then run it again.
+- `REJECT` — stop this approach.
+
+The human result starts with the verdict and its take:
+
+```text
+GO — <one-sentence take>
+
+status: complete  verdict: GO
+
+…
+
+Verdict GO — proceed as scoped.
+```
+
+The full result also carries the repository evidence, the rule that decided the
+question, and traps to avoid. A `REFINE` result includes a continuation command
+for the same session.
+
+## Verify a completion claim
+
+Use Check before saying work is done. Include the claim and the evidence you
+already have:
+
+```bash
+npx --no-install navi-cli check \
+  "Claim: the install path is ready. Evidence: package and cold-start tests pass."
+```
+
+When more work is required, Navi names one action and the evidence to return:
+
+```text
+── edge-walk ────────────────────────────────────────────────
+  DIRECT — <why the claim is not yet supported>
+
+── what it's asking ─────────────────────────────────────────
+  <next action>
+
+  bring back:
+    - <required evidence>
+
+── next ─────────────────────────────────────────────────────
+  npx --no-install navi-cli check '<new evidence>' -t <session>
+```
+
+Replace `<new evidence>` and run the continuation unchanged. The `-t` value
+keeps the result in the same session.
+
+See [Sessions](/sessions-and-outcomes) for continuation and history. For JSON
+output, structured `edge-walk` input, and process exits, use the
+[Automation reference](/automation).

@@ -1,0 +1,28 @@
+{
+  "event": {
+    "directive_id": "DIRECTIVE_ID_PLACEHOLDER",
+    "evidence": [
+      {
+        "kind": "source_location",
+        "uri": "handler.ts",
+        "line_start": 27,
+        "line_end": 27,
+        "claim_supported": true
+      },
+      {
+        "kind": "call_path",
+        "uri": "handler.ts",
+        "line_start": 21,
+        "line_end": 28,
+        "claim_supported": true
+      },
+      {
+        "kind": "test_result",
+        "command": "npm test -- handler.integration.test.ts",
+        "exit_code": 0,
+        "claim_supported": true,
+        "fresh_for_revision": "REVISION_PLACEHOLDER"
+      }
+    ]
+  }
+}

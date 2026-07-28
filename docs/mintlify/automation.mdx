@@ -1,0 +1,165 @@
+---
+title: "Automate Navi safely"
+sidebarTitle: "Automation"
+description: "Parse results, branch on outcomes, send structured input, and find sessions that need attention."
+keywords: ["automation", "JSON", "stdin", "exit codes", "environment", "sessions"]
+---
+
+For scripts, write one stable result to stdout and keep progress on stderr. Use
+`--json` for the result, `--stdin` for structured input, and `--progress jsonl`
+when another process needs progress events.
+
+For ordinary interactive commands, start with the [CLI guide](/cli).
+
+## Parse stdout without progress noise
+
+| Flag | Contract |
+|---|---|
+| `--json` | Write one `navi.run.v2` object to stdout |
+| `--progress off` | Write no progress events |
+| `--progress live` | Write human-readable progress to stderr |
+| `--progress jsonl` | Write JSON Lines progress events to stderr |
+| `--shape --json` | Write the resolved flow plan without calling a model |
+
+Choose `--progress off` when the result is all you need. Progress defaults to
+`live` when stderr is a TTY and `off` otherwise; diagnostics always stay on
+stderr.
+
+## Send structured input
+
+Pipe one JSON value to `--stdin` when a flow expects structured input. Navi
+binds that value to the flow's JSON argument; `edge-walk` uses this transport:
+
+```bash
+printf '%s' \
+  '{"event":"Claim: the release is ready. Evidence: tests and cold-start checks passed."}' |
+  npx --no-install navi-cli run edge-walk --json --stdin
+```
+
+For a person at the terminal, the shorter equivalent is:
+
+```bash
+npx --no-install navi-cli check \
+  "Claim: the release is ready. Evidence: tests and cold-start checks passed."
+```
+
+## Parse a run envelope
+
+Treat `schema_version: "navi.run.v2"` as the contract boundary. Its fields
+appear in schema order:
+
+| Field | Contents |
+|---|---|
+| `schema_version` | The literal `navi.run.v2` |
+| `run_id` | This invocation's ID |
+| `session_id` | The durable session ID |
+| `workflow` | Resolved flow name |
+| `event` | The task recorded for this turn |
+| `status` | Current session status |
+| `gate` | A gate, or `null` |
+| `verdict` | `GO`, `REFINE`, `REJECT`, or `null` |
+| `summary` | One-line result |
+| `surface_map` | Checked surface map, or `null` |
+| `directives` | Actions returned by a gate |
+| `findings` | Structured findings |
+| `evidence` | Evidence attached to this turn |
+| `confidence` | Gate confidence, or `null` |
+| `result` | The final step's validated output |
+| `next` | The next instruction, required evidence, runnable command, and timing |
+| `trace` | Step IDs, models, tools, and `duration_ms` |
+
+Read either `gate` or `verdict`; they are mutually exclusive. The `result`
+field contains the final step's validated output, not intermediate step
+outputs.
+
+## Branch on the outcome
+
+| Kind | Value | Session status | Exit |
+|---|---|---|---:|
+| Verdict | `GO` | `complete` | 0 |
+| Verdict | `REFINE` | `awaiting_parent` | 0 |
+| Verdict | `REJECT` | `complete` | 0 |
+| Gate | `CLEAR` | `clear` | 0 |
+| Gate | `DIRECT` | `awaiting_parent` | 0 |
+| Gate | `REPAIR` | `awaiting_parent` | 0 |
+| Gate | `BLOCKED` | `blocked` | 2 |
+| Gate | `ESCALATE` | `escalated` | 3 |
+| Gate | `COMPLETE` | `complete` | 0 |
+
+<Warning>
+  Exit `0` means Navi produced a valid result. It does not mean the work was
+  approved. Inspect `verdict` or `gate`.
+</Warning>
+
+Passing `--override "<reason>"` lets a caller proceed despite a demanding
+gate. The envelope keeps the original gate, the session records the reason,
+and the process exits `0`.
+
+## Interpret process exits
+
+| Exit | Contract |
+|---:|---|
+| `0` | A valid result was produced, or an explicit override changed the exit |
+| `1` | Runtime, model, compile, command-step, or CLI failure |
+| `2` | Gate `BLOCKED` |
+| `3` | Gate `ESCALATE` |
+| `4` | CLI input or flow-argument binding failed before a valid outcome |
+
+## Find sessions that need attention
+
+```bash
+npx --no-install navi-cli session list --status awaiting_parent
+npx --no-install navi-cli session list --gate REPAIR
+npx --no-install navi-cli session list --verdict REFINE
+npx --no-install navi-cli session list --all --json
+```
+
+| Flag | Accepted values |
+|---|---|
+| `--status <status>` | `new`, `active`, `awaiting_parent`, `clear`, `blocked`, `escalated`, `complete`, `failed` |
+| `--gate <gate>` | `CLEAR`, `DIRECT`, `REPAIR`, `BLOCKED`, `ESCALATE`, `COMPLETE` |
+| `--verdict <verdict>` | `GO`, `REFINE`, `REJECT` |
+| `--all` | Include archived sessions |
+
+Combine filters to narrow the list; Navi applies them with AND. Archived
+sessions stay hidden unless you pass `--all`. The workspace flag
+`-w <directory>` changes which repository a run reads, but it does not scope
+session history because every workspace uses the same ledger.
+
+## Choose models and session storage
+
+Set these variables in the process or in `.env`. A value already set in the
+process takes precedence when Navi loads `.env`.
+
+| Variable | Use |
+|---|---|
+| `NAVI_MODEL` | Override the default model |
+| `NAVI_JUDGE_MODEL` | Override the `edge-walk` judge step |
+| `NAVI_DB` | Select another session-ledger URL |
+
+Provider authentication uses the provider's key:
+
+| Variable | Provider |
+|---|---|
+| `DEEPSEEK_API_KEY` | DeepSeek |
+| `OPENAI_API_KEY` | OpenAI |
+| `ANTHROPIC_API_KEY` | Anthropic |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google |
+| `XAI_API_KEY` | xAI |
+| `OPENROUTER_API_KEY` | OpenRouter |
+
+`TAVILY_API_KEY` enables the `web-search` flow. See [Providers](/providers) for
+the tested models and compatibility lanes.
+
+## Tune a deep repository search
+
+Set these flags when you run the deep bare-query lane:
+
+| Flag | Accepted values |
+|---|---|
+| `--max-steps <n>` | A positive step budget; default `50` |
+| `--thinking <mode>` | `adaptive`, `enabled`, `disabled` |
+| `--reasoning-effort <level>` | `low`, `medium`, `high`, `xhigh`, `max` |
+
+Thinking and reasoning-effort overrides are DeepSeek-only. Flow authors set
+equivalent step-local settings in `action.yaml`.

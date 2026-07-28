@@ -1,0 +1,86 @@
+---
+title: "Navi"
+sidebarTitle: "Overview"
+description: "Ask the repository, judge a decision, or challenge a completion claim with evidence your coding agent can revisit."
+---
+
+**Navi is a read-only review CLI for coding agents.** Your coding agent writes.
+Navi independently reads the repository and checks its questions, decisions,
+and completion claims against the code.
+
+[Get started →](/quickstart) ·
+[View the source →](https://github.com/machinepathindustries/navi)
+
+## Install and get a cited answer
+
+```bash
+npm install --save-dev \
+  @machinepathindustries/navi
+export DEEPSEEK_API_KEY="<your-key>"
+npx --no-install navi-cli \
+  "Where does Navi make repository access read-only? Cite the exact file and line."
+```
+
+This shortest path uses DeepSeek. [Choose another provider →](/providers)
+
+## See the proof
+
+That question produced this abridged result in Navi's own repository:
+
+```console
+Answer
+Navi constructs the workspace filesystem with `readOnly: true`.
+
+Sources
+- `src/mastra/index.ts:70`
+
+✓ Grounding grade passed — the answer stands.
+```
+
+The citation is part of the result. When the evidence is too weak, Navi says so
+and gives the next command to run.
+
+## Choose the check you need
+
+<CardGroup cols={3}>
+  <Card title="Ask about the code" icon="search" href="/ask-decide-check#answer-a-repository-question">
+    `npx --no-install navi-cli "<question>"` returns an answer tied to the files and lines
+    that support it.
+  </Card>
+  <Card title="Judge a decision" icon="scale" href="/ask-decide-check#make-a-grounded-decision">
+    `npx --no-install navi-cli run founder "<decision>"` returns `GO`, `REFINE`, or
+    `REJECT`.
+  </Card>
+  <Card title="Verify completion" icon="badge-check" href="/ask-decide-check#verify-a-completion-claim">
+    `npx --no-install navi-cli check "<claim and evidence>"` returns a result or one next
+    action.
+  </Card>
+</CardGroup>
+
+## One review loop
+
+<Steps>
+  <Step title="Your coding agent does the work">
+    It plans, edits, and tests in the repository as usual.
+  </Step>
+  <Step title="Navi checks the claim">
+    Navi searches the selected workspace with read-only repository tools and
+    returns cited evidence, a verdict, or a concrete follow-up.
+  </Step>
+  <Step title="The session remembers">
+    The result and later evidence stay together. [Inspect the session or read
+    its story](/sessions-and-outcomes) without another model call.
+  </Step>
+</Steps>
+
+Navi ships with eight review flows for code search, diff review, pull-request
+readiness, product judgment, advice, idea sharpening, completion checks, and web
+research. [Choose a built-in flow →](/built-in-flows)
+
+## Use the provider you already have
+
+Navi passes `provider/model` identifiers to the Mastra Model Router and its AI
+SDK provider adapters. Start with DeepSeek, OpenAI, Anthropic, Google, or xAI;
+Navi does not maintain a model allowlist.
+
+[Install Navi and get a cited answer →](/quickstart)

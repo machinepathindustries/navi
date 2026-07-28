@@ -1,0 +1,123 @@
+---
+title: "Install or override a flow"
+description: "Run a flow by path, give it a project-local name, or replace a builtin for one repository."
+---
+
+A flow is a directory whose entry file is `action.yaml`. You can run that file
+directly, or place the directory in a discovery tier so `navi run <name>` finds
+it.
+
+## Run a flow without installing it
+
+Use an absolute path when the flow lives outside the repository you are working
+on:
+
+```bash
+npx --no-install navi-cli run \
+  /opt/team-flows/release-check/action.yaml --shape -w "$PWD"
+```
+
+`--shape` checks the YAML and prints the resolved steps without calling a model.
+Use `--help` to see the flow's arguments:
+
+```bash
+npx --no-install navi-cli run \
+  /opt/team-flows/release-check/action.yaml --help -w "$PWD"
+```
+
+This route leaves nothing in the target repository. Remove `--shape` when the
+plan is correct and supply the arguments shown by `--help`.
+
+## Give a shared flow a short name
+
+To make a shared flow available by name, put its complete directory under
+`.agents/workflows/`:
+
+```bash
+mkdir -p .agents/workflows
+cp -R /opt/team-flows/release-check .agents/workflows/release-check
+npx --no-install navi-cli catalog
+npx --no-install navi-cli run release-check --shape
+```
+
+The catalog identifies it as pinned:
+
+```text
+flows:
+  pinned  release-check
+```
+
+Keep the directory name and the `name:` inside `action.yaml` the same. Name
+resolution uses the directory; run output uses the YAML name.
+
+<Note>
+  A pinned flow is a project-owned snapshot. Update or remove its directory
+  yourself. Use an explicit path for a zero-copy flow. `navi install` connects
+  Navi to a coding agent; flow directories remain separate.
+</Note>
+
+## Keep a flow in one project
+
+Put a flow that belongs only to the current repository under
+`.navi/workflows/`:
+
+```text
+.navi/
+└── workflows/
+    └── release-check/
+        ├── action.yaml
+        └── parse-result.mjs
+```
+
+Command steps can reach a sibling parser through `$NAVI_ACTION_DIR`. Navi sets
+that variable to the absolute directory containing the active `action.yaml`:
+
+```yaml
+- name: parse
+  type: command
+  depends: review
+  command: node "$NAVI_ACTION_DIR/parse-result.mjs"
+```
+
+The command still runs from the workspace, so repository commands such as
+`git diff` operate on the repository selected by `-w`.
+
+## Override a builtin for one repository
+
+Create a project flow with the same directory name as the builtin:
+
+```text
+.navi/workflows/code-review/action.yaml
+```
+
+Then inspect the catalog:
+
+```bash
+npx --no-install navi-cli catalog
+```
+
+The relevant rows look like this:
+
+```text
+  project  code-review
+  builtin  code-review  [shadowed by project]
+```
+
+`npx --no-install navi-cli run code-review` now resolves the project flow. Delete only
+the project directory you added to expose the builtin again.
+
+## Flow precedence
+
+Navi checks these directories in order:
+
+| Precedence | Directory | Use |
+|---|---|---|
+| 1 | `.navi/workflows/<name>/` | A flow owned by this repository; also overrides lower tiers |
+| 2 | `.agents/workflows/<name>/` | A shared or third-party flow pinned into this repository |
+| 3 | `builtin/workflows/<name>/` | A flow shipped with Navi |
+
+An explicit path bypasses name lookup. `npx --no-install navi-cli catalog` is the
+check for which named flow is active.
+
+Next, [write the `action.yaml`](/write-a-flow). To make its result drive session
+state and gate-aware exits, [return a gate](/return-a-gate).

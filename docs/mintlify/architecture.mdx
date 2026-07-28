@@ -1,0 +1,88 @@
+---
+title: "Architecture"
+description: "How Navi turns a CLI request and an action.yaml flow into a read-only Mastra run and a resumable session."
+keywords: ["architecture", "Mastra", "workflow", "workspace", "sessions"]
+---
+
+Use this page when you need to trace a run or decide where an extension
+belongs. Navi defines the CLI, YAML flow contract, evidence and outcome
+schemas, and session behavior. [Mastra](https://mastra.ai) runs the agents,
+workflows, tools, memory, storage, and model-provider routing beneath it.
+
+```text
+coding agent or human
+        │
+        ▼
+    Navi CLI ── resolves command, workspace, flow, and session
+        │
+        ▼
+ action.yaml ── compiles to a Mastra workflow
+        │
+        ├── model-driven steps ── read-only workspace tools
+        ├── authored commands ─── trusted local process
+        └── final result ───────── cited answer, verdict, or gate
+                                      │
+                                      ▼
+                              resumable session ledger
+```
+
+## Trace one run end to end
+
+1. **Resolve** — Navi finds the flow by name or path and binds its arguments,
+   workspace, model, tools, skills, and output schema.
+2. **Compile** — Navi maps every declared step to a Mastra agent or command
+   step and rejects invalid wiring.
+3. **Run** — Mastra executes the committed workflow.
+4. **Validate** — Navi validates the final answer, verdict, gate, or structured
+   result.
+5. **Record** — Navi writes the turn to the selected session and renders human
+   output or a `navi.run.v2` JSON envelope.
+
+Inspect the first two stages without calling a model or creating a session:
+
+```bash
+npx --no-install navi-cli run founder --shape --json
+```
+
+The shape names the resolved arguments, model, steps, tools, skills, output
+fields, settings, and lint findings.
+
+## Know what Mastra owns and what Navi owns
+
+| Responsibility | Owner | Navi's seam |
+|---|---|---|
+| Agent execution and tool calls | Mastra | Select a model and pass an exact active-tool list |
+| Model routing | Mastra | Pass a `provider/model` identifier and validate Navi-specific settings |
+| Workspace filesystem and skills | Mastra | Set the root, read-only mode, tiers, and guard hook |
+| Workflow and step lifecycle | Mastra | Compile `action.yaml` into committed Mastra steps |
+| Memory, threads, cloning, and LibSQL storage | Mastra | Store Navi session state beside each thread |
+| YAML grammar and wiring lint | Navi | Reject invalid flow definitions before execution |
+| Cited-answer, gate, verdict, and JSON schemas | Navi | Validate the result and render the next action |
+| Catalog and precedence | Navi | Resolve project, pinned, and built-in sources |
+| CLI and agent interop | Navi | Provide query, run, check, session, story, install, and uninstall commands |
+
+## Choose the repository, model, review, and session
+
+- **Repository** — the current directory or `-w <path>` becomes the workspace
+  read boundary.
+- **Model** — `NAVI_MODEL` selects any compatible route exposed by Mastra's
+  Model Router and AI SDK provider adapters.
+- **Review** — a built-in or project-owned `action.yaml` defines the steps,
+  tools, and result.
+- **Session** — a new ID starts one line of work; `-t <session>` continues it
+  and `--fork` branches its history.
+
+The model surface belongs on [Providers](/providers). Repository and command
+boundaries belong on [Security and storage](/security-and-storage). Session
+behavior belongs on [Sessions](/sessions-and-outcomes).
+
+## Add review logic with YAML
+
+A flow adds a reusable review without replacing the runtime. It declares
+arguments, agent or command steps, dependencies, tools, skills, conditions, and
+output validation. Mastra executes the compiled result; Navi keeps the review
+contract stable around it.
+
+Start with [Write a flow](/write-a-flow). Use
+[Return a gate](/return-a-gate) when the result must direct the caller rather
+than return ordinary data.

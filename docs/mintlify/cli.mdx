@@ -1,0 +1,162 @@
+---
+title: "CLI guide"
+sidebarTitle: "CLI"
+description: "Use Navi to ask repository questions, run review flows, check work, and inspect sessions."
+keywords: ["CLI", "commands", "flags", "flows", "sessions"]
+---
+
+Navi is a read-only review CLI for coding agents. Start with a repository
+question; reach for a flow when you need a repeatable review or decision.
+
+```bash
+npx --no-install navi-cli "Where is retry behavior configured?"
+```
+
+Run `npx --no-install navi-cli` with no arguments to see the commands and built-in flows
+available in the current project.
+
+## Choose a command
+
+| You want to | Command |
+|---|---|
+| Ask about the repository | `npx --no-install navi-cli "<question>"` |
+| Challenge a completion claim | `npx --no-install navi-cli check "<claim and evidence>"` |
+| Run a review or decision flow | `npx --no-install navi-cli run <flow> [args]` |
+| See installed skills and flows | `npx --no-install navi-cli catalog` |
+| Inspect previous work | `npx --no-install navi-cli session list` |
+| Connect Navi to a coding agent | `npx --no-install navi-cli install` |
+
+## Ask about a repository
+
+The default command searches the current repository and answers with
+`file:line` citations:
+
+```bash
+npx --no-install navi-cli \
+  "Where does this project validate model settings?"
+```
+
+Use `-w` to ask about another project:
+
+```bash
+npx --no-install navi-cli -w ../api \
+  "Where is request authentication enforced?"
+```
+
+The quick lane runs first. If its grounding check needs a deeper read, Navi
+prints the exact `--deep` command to run next.
+
+```bash
+npx --no-install navi-cli --deep \
+  "Trace a request from the route to the database write."
+```
+
+## Run a flow
+
+Flows package a repeatable task in `action.yaml`. For example:
+
+```bash
+npx --no-install navi-cli run code-review
+npx --no-install navi-cli run pre-pr-review main
+npx --no-install navi-cli run founder \
+  "Should retry policy move into flow configuration?"
+```
+
+Use the catalog to choose a flow, then open that flow's help:
+
+```bash
+npx --no-install navi-cli catalog
+npx --no-install navi-cli help founder
+```
+
+Flow help shows the purpose, arguments, defaults, source tier, and default
+model. Preview the resolved steps, tools, skills, models, and schemas without
+calling a model:
+
+```bash
+npx --no-install navi-cli run founder --shape
+```
+
+See [Built-in flows](/built-in-flows) for the eight flows shipped with Navi.
+
+## Check work before calling it done
+
+Give Navi the claim and the evidence you already have:
+
+```bash
+npx --no-install navi-cli check \
+  "Claim: provider routing is ready. Evidence: tests pass."
+```
+
+The check either clears the claim or returns one bounded next action. If it
+asks for evidence, continue the same session with the printed `-t` value:
+
+```bash
+npx --no-install navi-cli check \
+  "Evidence: direct-provider checks passed." \
+  -t <id>
+```
+
+## Work with sessions
+
+One session keeps related runs, outcomes, continuations, and overrides
+together.
+
+```bash
+npx --no-install navi-cli session list
+npx --no-install navi-cli session show <id>
+npx --no-install navi-cli story <id>
+```
+
+`session show` prints the complete timeline and current state. `story` prints a
+short deterministic account. Neither command calls a model.
+
+Continue a session with `-t`; add `--fork` to copy its history into a new
+session before running:
+
+```bash
+npx --no-install navi-cli run founder \
+  "Here is the missing evidence." -t <id>
+npx --no-install navi-cli run founder \
+  "Judge this alternative." -t <id> --fork
+```
+
+Archive hides a session from the default list without deleting it:
+
+```bash
+npx --no-install navi-cli session archive <id>
+npx --no-install navi-cli session unarchive <id>
+```
+
+See [Sessions and outcomes](/sessions-and-outcomes) for verdict and gate
+meanings.
+
+## Connect or remove agent interop
+
+From the target project:
+
+```bash
+npx --no-install navi-cli install
+npx --no-install navi-cli uninstall
+```
+
+`install` creates Navi-owned symlinks for the interop skill and local launcher.
+`uninstall` removes only links recorded in Navi's ownership receipt. See
+[Connect your agent](/connect-your-agent) for the exact layout and the
+`npx skills` alternative.
+
+## Flags you will use most
+
+| Flag | Purpose |
+|---|---|
+| `-w <dir>` | Use another workspace for search, run, or install |
+| `-t <session>` | Continue a session for ask, check, or run |
+| `--fork` | Continue from copied history in a new session |
+| `--deep` | Run the tool-backed repository search |
+| `--shape` | Print a flow's resolved plan without a model call |
+| `--ephemeral` | Use a temporary session ledger for this invocation |
+| `--progress off\|live\|jsonl` | Select ask, check, or run progress on stderr |
+| `--version`, `-V` | Print the installed Navi version |
+
+For JSON output, stdin binding, session filters, environment variables, and
+process exits, use the [Automation contract](/automation).

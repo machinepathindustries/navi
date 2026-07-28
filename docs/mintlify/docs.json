@@ -1,0 +1,131 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Navi",
+  "theme": "mint",
+  "colors": {
+    "primary": "#0D625C",
+    "light": "#14B8A6",
+    "dark": "#15847B"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "search": {
+    "prompt": "Search Navi docs..."
+  },
+  "navbar": {
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/machinepathindustries/navi"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Quickstart",
+      "href": "/quickstart"
+    }
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get started",
+        "pages": [
+          "index",
+          "quickstart",
+          "connect-your-agent"
+        ]
+      },
+      {
+        "group": "Use Navi",
+        "pages": [
+          "ask-decide-check",
+          "built-in-flows",
+          "sessions-and-outcomes"
+        ]
+      },
+      {
+        "group": "Customize",
+        "pages": [
+          "write-a-flow",
+          "install-or-override-a-flow",
+          "return-a-gate",
+          "flow-schema"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "cli",
+          "automation",
+          "providers",
+          "security-and-storage",
+          "architecture"
+        ]
+      },
+      {
+        "group": "Help",
+        "pages": [
+          "troubleshooting"
+        ]
+      }
+    ]
+  },
+  "redirects": [
+    {
+      "source": "/proof",
+      "destination": "/quickstart",
+      "permanent": true
+    },
+    {
+      "source": "/hard-rails",
+      "destination": "/sessions-and-outcomes",
+      "permanent": true
+    },
+    {
+      "source": "/start",
+      "destination": "/quickstart",
+      "permanent": true
+    },
+    {
+      "source": "/for-your-agent",
+      "destination": "/connect-your-agent",
+      "permanent": true
+    },
+    {
+      "source": "/what-changes-in-your-loop",
+      "destination": "/ask-decide-check",
+      "permanent": true
+    },
+    {
+      "source": "/make-it-yours",
+      "destination": "/install-or-override-a-flow",
+      "permanent": true
+    },
+    {
+      "source": "/the-platform-you-inherit",
+      "destination": "/return-a-gate",
+      "permanent": true
+    },
+    {
+      "source": "/blast-radius",
+      "destination": "/security-and-storage",
+      "permanent": true
+    },
+    {
+      "source": "/time-cost",
+      "destination": "/cli",
+      "permanent": true
+    },
+    {
+      "source": "/latency",
+      "destination": "/cli",
+      "permanent": true
+    },
+    {
+      "source": "/built-on-mastra",
+      "destination": "/architecture",
+      "permanent": true
+    }
+  ]
+}

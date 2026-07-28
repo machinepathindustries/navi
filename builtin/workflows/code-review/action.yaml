@@ -1,0 +1,87 @@
+name: code-review
+description: >-
+  Review a git diff for correctness bugs first, then simplification, efficiency,
+  and reuse — returning structured findings ({file, line, severity, category,
+  summary}) against the frozen code-review schema. The diff is collected by a
+  command step over an args-provided ref range (default: all uncommitted changes
+  vs HEAD); an empty range is reported honestly with zero findings, never
+  fabricated ones.
+
+args:
+  range:
+    required: false
+    default: HEAD
+    description: >-
+      A git diff ref range to review, e.g. "HEAD~1..HEAD", "main...feature", or a
+      commit sha. Whitespace-separated revs ("A B") are honored. Defaults to HEAD
+      (working tree vs HEAD = all staged + unstaged changes).
+
+steps:
+  # Collect the diff in a command step so dynamic input is handled
+  # deterministically. The range is untrusted author input,
+  # so it is NEVER interpolated into a position the shell parses. `{{ input.range }}`
+  # flows through a single-quoted heredoc straight into node's stdin — an embedded
+  # `;`, `$(…)`, backtick, or quote is inert data, not shell (macOS /bin/sh
+  # mis-parses $()-nested substitution on odd quotes; the quoted heredoc + stdin
+  # pattern is the repo's proven safe channel, same as web-search). node then splits
+  # the range on whitespace and runs `git` via spawnSync as ARGV (no shell), so each
+  # token reaches git as a literal revision — it can never become a second command.
+  # An option-injection guard rejects any token starting with "-" (a legit git rev
+  # never does; this blocks arg-smuggled flags like --output=… that would write a
+  # file). A bad/unknown revision makes git exit nonzero → the step fails → exit 1
+  # (honesty guard, no silent success). node is guaranteed present (navi is a node
+  # CLI); require() resolves because `node -e` defaults to CommonJS.
+  - name: collect_diff
+    type: command
+    command: |
+      node -e 'const cp=require("node:child_process");let r="";process.stdin.on("data",d=>r+=d).on("end",()=>{r=r.replace(/\n+$/,"").trim();const a=r?r.split(/\s+/):["HEAD"];if(a.some(x=>x.startsWith("-"))){process.stderr.write("navi code-review: refusing a diff ref that starts with \"-\" (looks like a git flag, not a revision): "+r+"\n");process.exit(2);}const g=cp.spawnSync("git",["--no-pager","diff",...a],{encoding:"utf8",maxBuffer:67108864});if(g.status!==0){process.stderr.write(g.stderr||("git diff failed for range: "+r+"\n"));process.exit(g.status||1);}process.stdout.write(g.stdout);})' <<'__NAVI_RANGE_EOF__'
+      {{ input.range }}
+      __NAVI_RANGE_EOF__
+
+  # The review lens lives here in the prompt (no new skill — PLAN lists workflows
+  # only). Explicit read-only `tools:` (READ_ONLY_WORKSPACE_TOOLS — absent tools:
+  # is now ZERO, not all) so the agent can read the surrounding files a hunk
+  # touches for real context before judging; shell is excluded. Output is the
+  # frozen finding schema (co-located findings.schema.ts).
+  - name: review
+    type: agent
+    depends: collect_diff
+    tools: [view, search_content, find_files, mastra_workspace_file_stat]
+    prompt: |
+      You are reviewing a code change. Below is the unified `git diff` for the
+      range that was requested.
+
+      Your job: find real problems a careful reviewer would flag, in priority
+      order — correctness bugs first (logic errors, off-by-one, null/undefined
+      handling, wrong branch, race, resource leak, unhandled error, security),
+      then simplification/reuse (duplicated or needlessly complex code that an
+      existing helper or a smaller form would replace), then efficiency, then
+      test coverage, then style. Read the actual changed lines. When you need
+      surrounding context to be sure, use your tools to read the file around the
+      hunk — do not guess. Never invent a problem to have something to say.
+
+      For every finding, cite the file path and a real line number from the NEW
+      side of the diff (the `+` lines / the `@@ … +start,count @@` hunk header).
+      Choose a severity deliberately:
+        - high   = must fix before merge: a correctness/security/data-loss bug.
+        - medium = should fix: a likely bug, a real smell, or a missing test for
+                   risky new behavior.
+        - low    = nit: style, naming, a minor simplification.
+      Choose a short lowercase `category`, e.g. correctness, simplification,
+      efficiency, security, test-coverage, or style. Keep each finding `summary`
+      to one concrete sentence (what is wrong and where), not a lecture.
+
+      Set the top-level `summary` to a one-line overall gloss of the review
+      (e.g. "3 files changed; 2 correctness issues and 1 nit").
+
+      IMPORTANT — empty or trivial diff: if the diff below is empty or contains no
+      reviewable code change (only whitespace, or nothing at all), return an EMPTY
+      findings list and set `summary` to an honest note that there was nothing to
+      review for this range (e.g. "No changes in the range HEAD..HEAD — nothing to
+      review."). Do NOT fabricate a finding to fill the list.
+
+      Range requested: "{{ input.range }}"
+
+      DIFF:
+      {{ steps.collect_diff.stdout }}
+    output: findings.schema.ts

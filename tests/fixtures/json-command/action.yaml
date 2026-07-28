@@ -1,0 +1,21 @@
+name: json-command
+description: >-
+  A model-free fixture whose single final step is a command emitting a
+  verdict-shaped JSON object on stdout — exercises the CLI's command-JSON unwrap
+  (envelope.result becomes the parsed object) and the verdict-aware next block,
+  keyed on the result's verdict field (not the workflow name), with no model call.
+
+args:
+  verdict:
+    required: false
+    default: REFINE
+    description: Which verdict the emitted object carries (GO | REFINE | REJECT).
+
+steps:
+  # printf keeps the JSON a single literal argument; the emitted object is the
+  # run's final output, so envelope.result is the parsed verdict, not the
+  # {stdout,stderr,exitCode} wrapper.
+  - name: emit
+    type: command
+    command: >-
+      printf '{"verdict":"{{ input.verdict }}","take":"a test take","grounding_points":[],"decision_rules":["tighten the schema first"],"what_not_to_do":["do not ship as-is"]}'

@@ -1,0 +1,172 @@
+---
+title: "Built-in flows"
+sidebarTitle: "Built-in flows"
+description: "Choose among Navi's eight built-in repository search, review, decision, and web research flows."
+keywords: ["flows", "code search", "code review", "founder", "edge-walk", "web search"]
+---
+
+Navi ships eight flows whose repository access is read-only. Choose one by the
+job you need done; use the bare question command before reaching for a heavier
+search flow.
+
+```bash
+npx --no-install navi-cli "Where is provider selection implemented?"
+```
+
+## Choose the job
+
+| Job | Flow | Command |
+|---|---|---|
+| Search the repository explicitly | `code-search` | `npx --no-install navi-cli run code-search "<question>"` |
+| Review uncommitted work or a diff range | `code-review` | `npx --no-install navi-cli run code-review [range]` |
+| Check whether a branch is ready for a PR | `pre-pr-review` | `npx --no-install navi-cli run pre-pr-review [base]` |
+| Turn a half-formed idea into a concrete brief | `sharpen` | `npx --no-install navi-cli run sharpen "<turn>"` |
+| Think through an open question | `founder-advice` | `npx --no-install navi-cli run founder-advice "<request>"` |
+| Judge a concrete decision or artifact | `founder` | `npx --no-install navi-cli run founder "<request>"` |
+| Challenge a completion claim | `edge-walk` | `npx --no-install navi-cli check "<claim and evidence>"` |
+| Research the live web | `web-search` | `npx --no-install navi-cli run web-search "<query>"` |
+
+## Search the repository
+
+### `code-search`
+
+Use `code-search` when you want the repository-search discipline as an
+explicit flow. It returns a direct answer and citations for lines it read.
+
+```bash
+npx --no-install navi-cli run code-search \
+  "Trace model selection from the CLI flag to the agent."
+```
+
+For normal questions, prefer the shorter bare command. It adds a grounding
+check and tells you when to rerun with `--deep`:
+
+```bash
+npx --no-install navi-cli "Where is the default model selected?"
+```
+
+## Review code changes
+
+### `code-review`
+
+With no argument, `code-review` reviews staged and unstaged changes against
+`HEAD`:
+
+```bash
+npx --no-install navi-cli run code-review
+```
+
+Pass a revision or range to review a specific diff:
+
+```bash
+npx --no-install navi-cli run code-review "HEAD~1..HEAD"
+```
+
+The result contains structured findings with file, line, severity, category,
+and summary. An empty diff returns no findings instead of inventing work.
+
+### `pre-pr-review`
+
+Use `pre-pr-review` for the branch-level question: is this ready to open as a
+pull request?
+
+```bash
+npx --no-install navi-cli run pre-pr-review main
+```
+
+The flow reviews `main...HEAD` by default. It returns `ready` or `not_ready`,
+structured findings, and an explicit coverage note. When a large diff is
+bounded, the result names files that were not reviewed line by line.
+
+## Shape and judge decisions
+
+### `sharpen`
+
+Use `sharpen` before judgment when the idea is still vague. Each invocation
+asks one forcing question; continue with the session ID it prints.
+
+```bash
+npx --no-install navi-cli run sharpen \
+  "I think Navi should support reusable policy packs."
+```
+
+It works across five dimensions: the real ask, evidence of the problem, the
+narrowest useful version, blast radius, and kill condition. It returns `ASK`
+until it can produce a concrete brief, then returns `READY` for handoff to
+Founder. `HUMAN` is reserved for a decision outside the agent dialogue.
+
+### `founder-advice`
+
+Use `founder-advice` when you want options, tradeoffs, and one recommendation,
+not a verdict.
+
+```bash
+npx --no-install navi-cli run founder-advice \
+  "How should provider compatibility be presented?"
+```
+
+Name a file, diff, or plan when the counsel should be grounded in the
+repository.
+
+### `founder`
+
+Use `founder` when a concrete decision, design, plan, or artifact needs a hard
+call:
+
+```bash
+npx --no-install navi-cli run founder \
+  "Should the provider matrix in docs/mintlify/providers.mdx ship?"
+```
+
+Founder returns `GO`, `REFINE`, or `REJECT`. A thinly grounded request returns
+`REFINE` with the missing evidence named.
+
+## Check a completion claim
+
+### `edge-walk`
+
+`edge-walk` maps the runtime wiring around a claim, expands the seams it opens,
+and independently judges the cited evidence. For a person at the terminal, use
+the `check` command:
+
+```bash
+npx --no-install navi-cli check \
+  "Claim: the CLI docs are release-ready. Evidence: Mintlify validation passes."
+```
+
+It returns one of `CLEAR`, `DIRECT`, `REPAIR`, `BLOCKED`, `ESCALATE`, or
+`COMPLETE`, with at most one bounded directive. Return evidence to the same
+session with the printed `-t` value.
+
+The explicit `edge-walk` flow accepts JSON through `--stdin`; use it for
+integrations. See the [Automation contract](/automation) for that transport.
+
+## Research the web
+
+### `web-search`
+
+Use `web-search` for current external information:
+
+```bash
+TAVILY_API_KEY="<your-key>" \
+  npx --no-install navi-cli run web-search \
+  "What changed in the latest Mastra workspace API?"
+```
+
+The result contains an answer and the source URLs it used. Without a valid
+`TAVILY_API_KEY`, the flow reports that the web was not searched instead of
+inventing sources.
+
+## Inspect any flow
+
+The CLI is the source of truth for installed flows:
+
+```bash
+npx --no-install navi-cli catalog
+npx --no-install navi-cli help code-review
+npx --no-install navi-cli run code-review --shape
+```
+
+`catalog` includes project, pinned, and built-in sources. A project flow with
+the same name can override a lower-precedence flow, so check the source label
+when behavior differs from this page.

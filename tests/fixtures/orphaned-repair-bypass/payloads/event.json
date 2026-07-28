@@ -1,0 +1,16 @@
+{
+  "event": {
+    "kind": "plan",
+    "task": "Call records arriving dirty from the switch feed (un-normalized numbers, missing duration or direction) are being dropped by ingest. Add call-record repair so salvageable records are cleaned and stored instead of dropped.",
+    "plan": {
+      "claim": "complete",
+      "summary": "Added call-record repair to the ingest pipeline. repairCallRecord() in repair.ts salvages dirty records (normalizes numbers to E.164, backfills durationMs, defaults direction), and it is wired into batch-import.ts's importBatch, which now validates, repairs, and re-validates before dropping. Unit tests in repair.test.ts and an end-to-end test in batch-import.test.ts (which drives a genuinely dirty record through importBatch and confirms it is repaired and stored) prove the repair path works. Call-record repair is done.",
+      "citations": [
+        { "uri": "repair.ts", "line_start": 11, "line_end": 19 },
+        { "uri": "repair.test.ts", "line_start": 1, "line_end": 58 },
+        { "uri": "batch-import.ts", "line_start": 14, "line_end": 32 },
+        { "uri": "batch-import.test.ts", "line_start": 1, "line_end": 55 }
+      ]
+    }
+  }
+}

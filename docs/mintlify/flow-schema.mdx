@@ -1,0 +1,133 @@
+---
+title: "Flow schema"
+description: "Reference for action.yaml fields, arguments, step types, tools, templates, and compiler limits."
+keywords: ["action.yaml", "flow schema", "tools", "agent step", "command step"]
+---
+
+`action.yaml` uses a closed schema. Unknown fields and invalid wiring fail
+before a model is called.
+
+## Flow fields
+
+| Field | Required | Contract |
+|---|---:|---|
+| `name` | Yes | Flow id shown in run output |
+| `description` | No | Help and catalog text |
+| `args` | No | Named input arguments |
+| `steps` | Yes | One or more ordered steps |
+
+## Arguments
+
+| Field | Contract |
+|---|---|
+| `type` | `string` by default, or `json` |
+| `required` | Whether the caller must provide it |
+| `default` | Value used when it is omitted |
+| `description` | Text shown by flow help |
+
+String arguments come from positional CLI text. A JSON argument receives the
+value passed on standard input:
+
+```bash
+printf '%s' '{"event":"Claim: ready to ship. Evidence: tests passed."}' |
+  npx --no-install navi-cli run edge-walk --json --stdin
+```
+
+Do not declare `revision`, `prior`, or `prior_workflow`; Navi reserves those
+keys for run and continuation state.
+
+## Shared step fields
+
+Every step has `name` and `type`. It may also have:
+
+| Field | Contract |
+|---|---|
+| `depends` | Earlier step that must finish first |
+| `condition` | Small run/skip predicate |
+
+Dependencies are linear and must name an earlier step. Fan-out and fan-in are
+compile errors. Conditions support dotted values, `==`, `!=`, `&&`, and `||`;
+they do not support parentheses or arbitrary code.
+
+## Agent step fields
+
+| Field | Contract |
+|---|---|
+| `prompt` | Required instruction for the step |
+| `tools` | Exact workspace-tool allowlist |
+| `skills.only` | Skill bodies loaded into the step instructions |
+| `model` | `provider/model` for this step |
+| `modelEnv` | Environment variable that overrides `model` |
+| `output` | Inline field types or a co-located TypeScript Zod schema |
+| `maxSteps` | Positive integer step budget |
+| `settings` | `temperature`, `thinking`, and `reasoningEffort` |
+
+`thinking` accepts `adaptive`, `enabled`, or `disabled`.
+`reasoningEffort` accepts `low`, `medium`, `high`, `xhigh`, or `max`. Those
+settings are DeepSeek-only; another provider makes them a compile error.
+
+### Workspace tools
+
+| Tool | Reads |
+|---|---|
+| `view` | File contents |
+| `search_content` | Matching text |
+| `find_files` | File names |
+| `mastra_workspace_file_stat` | File metadata |
+
+An unknown name is a compile error. Agent steps have no workspace write, edit,
+delete, or shell tool.
+
+### Structured output
+
+Inline fields accept `string`, `number`, `boolean`, their array forms, and an
+optional `?` suffix:
+
+```yaml
+output:
+  answer: string
+  citations: string[]
+  caveat: string?
+```
+
+Use a relative `.ts` path for nested objects or enums:
+
+```yaml
+output: findings.schema.ts
+```
+
+The file sits beside `action.yaml` and default-exports a Zod object schema.
+
+## Command step fields
+
+A command step accepts `command` plus the shared fields. It cannot declare
+agent-only fields such as `prompt`, `tools`, `skills`, `model`, or `output`.
+
+Command steps inherit the workspace as their current directory. Resolve a
+co-located parser through `$NAVI_ACTION_DIR`.
+
+<Warning>
+  A command step is trusted shell code. Do not interpolate untrusted input into
+  a shell-parsed position. Pass input to a program that validates it, then
+  invoke subprocesses with an argument array.
+</Warning>
+
+## Template values
+
+Templates read input and completed output:
+
+```yaml
+{{ input.range }}
+{{ steps.collect_diff.stdout }}
+```
+
+Objects and arrays become JSON. A missing path becomes an empty string.
+`--shape` validates YAML fields and wiring; it cannot prove that a runtime
+template path will exist.
+
+## Compiler limits
+
+Navi has no workflow fields for retries, timeouts, loops, or parallel branches.
+Adding one is an unknown-key error.
+
+Use `npx --no-install navi-cli run <flow> --shape --json` for the resolved plan.

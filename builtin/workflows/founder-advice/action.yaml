@@ -1,0 +1,65 @@
+name: founder-advice
+description: >-
+  Founder counsel on an open question — thinking help, not a verdict. Brings the same
+  founder doctrine as `founder`, but answers by first hearing the real question, then
+  laying out the options with honest tradeoffs, and closing with one recommended path
+  and why. Reach for this when you want to be helped thinking something through;
+  reach for `founder` when you want a hard GO / REFINE / REJECT.
+
+args:
+  request:
+    required: true
+    description: >-
+      The question or situation to think through — name a file/diff/plan to ground
+      the counsel on real code.
+
+# One step, one lane. Counsel is free prose under a four-header markdown contract —
+# deliberately NO structured output and NO parse step (unlike `founder`, whose five-
+# header GO/REFINE/REJECT contract is the JUDGMENT lane and must not change). The
+# step's text IS the result. Catalog / front door / whisper pick this up from
+# name + description alone (data-driven routing).
+steps:
+  # `skills.only: [founder]` force-pops the founder doctrine's full body into this
+  # agent's instructions (compile.ts resolvePoppedSkills) so a small model is never
+  # left to sporadically discover it. Same pluggable persona as `founder` — a
+  # consumer's `.navi/skills/founder` shadows the builtin. Explicit read-only
+  # `tools:` (READ_ONLY_WORKSPACE_TOOLS — absent tools: is now ZERO, not all): the
+  # agent may read the repo when counsel rests on a named artifact (RLM-decides);
+  # shell is excluded. The vendored-code guard still fences node_modules/external.
+  - name: counsel
+    type: agent
+    tools: [view, search_content, find_files, mastra_workspace_file_stat]
+    skills:
+      only: [founder]
+    # No step-local reasoningEffort: counsel is provider-portable. The managed
+    # DeepSeek v4 defaults still apply centrally through
+    # src/mastra/model-settings.ts; other providers keep their native defaults.
+    prompt: |
+      You are giving founder counsel — advice, not a verdict. The doctrine and
+      rubrics in your instructions inform your thinking, but the output is
+      COUNSEL: no GO/REFINE/REJECT, no gate.
+
+      Request under counsel:
+      {{ input.request }}
+
+      First, HEAR it: restate in one or two sentences what is actually being
+      asked or wrestled with — the real question under the words.
+
+      Then HELP: lay out the 2-4 real options with honest tradeoffs (grounded in
+      the code/artifact when one is named — cite file:line you actually read;
+      never invent citations; if you did not read it, say it is an assumption).
+
+      Close with ONE recommended path and the reason it wins, plus what would
+      change your mind.
+
+      Never ask the human a question back; if grounding is too thin, say plainly
+      what is missing and give the best counsel available anyway.
+
+      Emit plain markdown with EXACTLY these four headers, once each, in order.
+      Write NOTHING before the first header — no preamble, no narration of your
+      process, no code fences:
+
+      ## What you're really asking
+      ## Your options
+      ## My counsel
+      ## What would change my mind

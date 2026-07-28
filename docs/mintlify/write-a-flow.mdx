@@ -1,0 +1,125 @@
+---
+title: "Write a flow"
+description: "Create an action.yaml, inspect its model-free plan, and run your first command and agent steps."
+---
+
+A flow is a sequence of agent and command steps in `action.yaml`. Start with
+one working step; use the [flow schema](/flow-schema) when you need the full
+field reference.
+
+## Start with one command
+
+Create `.navi/workflows/hello/action.yaml`:
+
+```yaml
+name: hello
+description: Print a greeting without calling a model.
+
+steps:
+  - name: greet
+    type: command
+    command: printf 'hello from Navi\n'
+```
+
+Inspect the plan before running it:
+
+```bash
+npx --no-install navi-cli run hello --shape
+```
+
+The plan identifies the command step and its fixed output:
+
+```text
+workflow: hello — Print a greeting without calling a model.
+
+steps:
+  - greet: type=command output={stdout,stderr,exitCode}
+```
+
+Run the flow:
+
+```bash
+npx --no-install navi-cli run hello
+```
+
+```text
+result:
+{
+  "stdout": "hello from Navi\n",
+  "stderr": "",
+  "exitCode": 0
+}
+```
+
+`--shape` makes no model call. It exits `1` when the plan has a wiring error
+and `0` when the plan compiles.
+
+## Add an agent step
+
+An agent that reads the repository needs an explicit tool allowlist:
+
+```yaml
+name: explain-code
+description: Answer one repository question with cited evidence.
+
+args:
+  question:
+    required: true
+    description: The code question to answer.
+
+steps:
+  - name: answer
+    type: agent
+    tools: [view, search_content, find_files, mastra_workspace_file_stat]
+    prompt: |
+      Answer this question about the current repository:
+
+      {{ input.question }}
+
+      Cite every code claim as path:line.
+    output:
+      answer: string
+      citations: string[]
+```
+
+Run it with the required string:
+
+```bash
+npx --no-install navi-cli run explain-code \
+  "Where is session state persisted?"
+```
+
+Absent or empty `tools:` means zero workspace tools. Navi reports that choice
+in `--shape`; it never grants every tool by default.
+
+## Pass values between steps
+
+Templates can read flow input and completed step output:
+
+```yaml
+prompt: |
+  Review this diff:
+  {{ steps.collect_diff.stdout }}
+
+  The requested range was {{ input.range }}.
+```
+
+Objects and arrays become JSON. A missing path becomes an empty string, so
+check template paths before running the flow.
+
+## Compile before every run
+
+Use the readable and JSON plans while authoring:
+
+```bash
+npx --no-install navi-cli run hello --shape
+npx --no-install navi-cli run hello --shape --json
+```
+
+The plan shows resolved models, tools, skills, dependencies, conditions,
+output fields, settings, prompt size, and lint findings.
+
+Next:
+
+- Use the [flow schema](/flow-schema) for every supported field and tool.
+- [Return a gate](/return-a-gate) when the final step should direct a session.

@@ -1,0 +1,76 @@
+---
+title: "Quickstart"
+description: "Install Navi in an existing repository, choose a model, and get a cited answer."
+keywords: ["install", "quickstart", "npm", "first run"]
+---
+
+This quickstart adds Navi to a repository you already work in and uses it to
+answer one real question about that codebase.
+
+<Note>
+  You need macOS or Linux, Node.js 22.13 or newer,
+  [ripgrep](https://github.com/BurntSushi/ripgrep), and an API key for one
+  [model provider](/providers). Git is needed for flows that inspect revisions
+  or diffs.
+</Note>
+
+<Steps>
+  <Step title="Install Navi in the repository">
+    ```bash
+    cd /path/to/your/repository
+    npm install --save-dev \
+      @machinepathindustries/navi
+    npx --no-install navi-cli --version
+    ```
+
+    The scoped package provides both `navi` and `navi-cli`. These docs use
+    `npx --no-install navi-cli` so each command runs the version installed in this project.
+  </Step>
+
+  <Step title="Choose a model">
+    Start with Navi's default tested route:
+
+    ```bash
+    export DEEPSEEK_API_KEY="<your-key>"
+    export NAVI_MODEL="deepseek/deepseek-v4-flash"
+    ```
+
+    You can put the same values in the project's `.env` file. Prefer another
+    lab? [Choose a provider →](/providers)
+  </Step>
+
+  <Step title="Ask a repository question">
+    Ask something whose answer should already exist in the code:
+
+    ```bash
+    npx --no-install navi-cli \
+      "Where is retry behavior configured? Cite the file and line."
+    ```
+
+    A successful first run has three observable parts:
+
+    - Navi reports that it scanned the repository.
+    - The answer includes at least one real `path/to/file:line` citation.
+    - The final grounding line says the answer stands, or gives the exact deeper
+      command needed before you rely on it.
+  </Step>
+
+  <Step title="Let your coding agent call Navi">
+    ```bash
+    npx --no-install navi-cli install
+    ./.agents/bin/navi --version
+    ```
+
+    Navi links its launcher and interop skill under `.agents/`; it does not copy
+    either one. Compatible coding agents can now discover when and how to ask
+    Navi for a check.
+  </Step>
+</Steps>
+
+<Check>
+  Navi is installed, the repository answer was grounded, and the project-local
+  launcher works.
+</Check>
+
+Next, [choose between Ask, Decide, and Check](/ask-decide-check), or see
+[exactly what the agent connection writes](/connect-your-agent).
