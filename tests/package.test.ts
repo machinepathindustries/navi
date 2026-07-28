@@ -44,7 +44,10 @@ beforeAll(() => {
 
   const publish = spawnSync(
     "npm",
-    ["publish", "--dry-run", "--json", "--ignore-scripts"],
+    // A release test must remain valid after the version exists on npm.
+    // `--force` affects only this dry-run: npm still builds and validates the
+    // publication payload, but does not reject it as an attempted overwrite.
+    ["publish", "--dry-run", "--json", "--ignore-scripts", "--force"],
     {
       cwd: ROOT,
       encoding: "utf8",

@@ -1,7 +1,7 @@
 ---
 title: "Use Navi with OpenCode"
 sidebarTitle: "OpenCode"
-description: "Let OpenCode call Navi for a cited repository answer, then continue the same session when Navi asks for a deeper read."
+description: "Let OpenCode call Navi for a cited repository answer without modifying the repository."
 keywords: ["OpenCode", "agent skills", "interop", "terminal"]
 ---
 
@@ -61,55 +61,70 @@ revision-aware checks and flows that inspect a diff.
 
     ```bash
     opencode run \
-      'Use the navi-interop skill to ask Navi: "What command runs this repository test suite? Cite the exact file and line." Do not modify files. Show the exact Navi command and return its cited answer.'
+      'Use the navi-interop skill to ask Navi: "What command runs the test suite in this repository? Cite the exact file and line." Do not modify files. Show the exact Navi command and return its cited answer.'
     ```
 
     OpenCode loads the skill, calls the project-local `.agents/bin/navi`
-    launcher, and returns Navi's answer. When Navi's quick pass asks for a
-    deeper read, the skill runs the exact continuation command so the evidence
-    stays in the same session.
+    launcher, and returns Navi's answer. If Navi asks for a deeper read, OpenCode
+    can run the continuation command and keep the evidence in the same session.
   </Step>
 </Steps>
 
 ## A verified interop result
 
-This condensed summary comes from an observed OpenCode 1.17.13 run using a
-packed Navi 0.1.0 build in a clean demo repository. It preserves the commands,
-answer, and citation while removing terminal decoration, timings, and the
-generated session ID.
+This run used OpenCode 1.17.13 and the public
+`@machinepath/navi@0.1.0` package in a clean repository. DeepSeek was the only
+model provider passed to the isolated process. OpenCode loaded the skill, Navi
+settled the question in one pass, and Git stayed clean.
 
 ```console
-> Skill "navi-interop"
-
-$ <project>/.agents/bin/navi \
-    "What command runs this repository test suite? Cite the exact file and line." \
-    -w <project>
-
-navi: scanned the repo — 2 hits across 1 file
-
-⚠ This quick answer needs a deeper read. Run:
-  <project>/.agents/bin/navi \
-    "What command runs this repository test suite? Cite the exact file and line." \
-    -w <project> -t <session> --deep
-
-$ <project>/.agents/bin/navi \
-    "What command runs this repository test suite? Cite the exact file and line." \
-    -w <project> -t <session> --deep
-
-Answer
-The command is `npm test`.
-
-Sources
-- `README.md:3` — "Run the test suite with `npm test`."
-
-Confidence
-High
-
-No files were modified.
+$ opencode --version
+1.17.13
+$ node -p "<installed package name and version>"
+@machinepath/navi@0.1.0
+$ ./.agents/bin/navi --version
+navi 0.1.0
+git status before: clean
 ```
 
-Navi requested the deep continuation, and the second read settled the question
-from the repository. A post-run `git status --short` remained empty.
+```console
+→ Skill "navi-interop"
+```
+
+```console
+$ <project>/.agents/bin/navi "What command runs the test suite in this repository? Cite the exact file and line." -w <project>
+navi: scanned the repo — 3 hits across 2 files (<timing>)
+navi: quick pass — answering from what I found (I'll grade my own answer below)
+**Answer:**
+The command `npm test` runs the test suite, which executes the script
+`node --test` as defined in the repository’s `package.json`.
+
+**Sources**
+- `package.json:9-11` — The `"scripts"` block contains `"test": "node --test"`.
+- `README.md:3` — "Run the test suite with `npm test`."
+
+**Confidence:** High
+
+── grounding check ───────────────────────────────────────────
+VERDICT: COMPLETE
+WEAK/MISSING: None
+ESCALATE: no
+
+── next ──────────────────────────────────────────────────────
+✓ Grounding grade passed — the answer stands.
+```
+
+```console
+OpenCode exit: 0
+git status after: clean
+git status unchanged: yes
+```
+
+The terminal was captured with `/usr/bin/script`. Normalization removed terminal
+control bytes, replaced the temporary repository path with `<project>`, and
+replaced the elapsed milliseconds with `<timing>`; it did not change model
+wording. Read the
+[complete normalized recording](https://github.com/machinepathindustries/navi/blob/main/docs/mintlify/recordings/opencode-1.17.13-navi-0.1.0.txt).
 
 ## Use the OpenCode TUI
 

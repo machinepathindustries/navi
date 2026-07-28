@@ -1,0 +1,71 @@
+$ opencode --version
+1.17.13
+$ node -p "<installed package name and version>"
+@machinepath/navi@0.1.0
+$ ./.agents/bin/navi --version
+navi 0.1.0
+git status before: clean
+$ opencode run --pure --model deepseek/deepseek-v4-flash "<interop prompt>"
+
+> build · deepseek-v4-flash
+
+→ Skill "navi-interop"
+
+$ test -x <project>/.agents/bin/navi && echo "choice 1" || echo "no choice 1"
+choice 1
+
+$ test -f <project>/node_modules/.bin/navi-cli && echo "choice 2" || echo "no choice 2"
+choice 2
+
+$ command -v navi && echo "choice 3" || echo "no choice 3"
+no choice 3
+
+Both launchers exist — using the preferred `.agents/bin/navi`.
+
+$ <project>/.agents/bin/navi "What command runs the test suite in this repository? Cite the exact file and line." -w <project>
+navi: scanned the repo — 3 hits across 2 files (<timing>)
+navi: quick pass — answering from what I found (I'll grade my own answer below)
+**Answer:**
+The command `npm test` runs the test suite, which executes the script `node --test` as defined in the repository’s `package.json`.
+
+**Sources**
+- `package.json:9-11` — The `"scripts"` block contains `"test": "node --test"`.
+- `README.md:3` — "Run the test suite with `npm test`."
+
+**Confidence:** High
+
+── grounding check ───────────────────────────────────────────
+VERDICT: COMPLETE
+WEAK/MISSING: None
+ESCALATE: no
+
+── next ──────────────────────────────────────────────────────
+✓ Grounding grade passed — the answer stands.
+  same question, different lens — copy one:
+    Answer a question about THIS repository with cited file:
+      navi run code-search 'What command runs the test suite in this repository? Cite the exact file and line.'
+    Founder judgment on a decision, design, or piece of work:
+      navi run founder 'What command runs the test suite in this repository? Cite the exact file and line.'
+    Founder counsel on an open question — thinking help:
+      navi run founder-advice 'What command runs the test suite in this repository? Cite the exact file and line.'
+    Bootstrap interrogation for a half-formed idea:
+      navi run sharpen 'What command runs the test suite in this repository? Cite the exact file and line.'
+    Answer a question from the live web via Tavily:
+      navi run web-search 'What command runs the test suite in this repository? Cite the exact file and line.'
+
+**Navi command:**
+
+```bash
+<project>/.agents/bin/navi "What command runs the test suite in this repository? Cite the exact file and line." -w <project>
+```
+
+**Cited answer:** `npm test` — runs `node --test` as defined in the `"scripts"` block.
+
+- **`package.json:9-11`** — `"test": "node --test"`
+- **`README.md:3`** — "Run the test suite with `npm test`."
+
+Grounding verdict: COMPLETE (no `--deep` escalation needed).
+
+OpenCode exit: 0
+git status after: clean
+git status unchanged: yes

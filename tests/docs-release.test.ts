@@ -21,6 +21,10 @@ const config = JSON.parse(readFileSync(join(DOCS, "docs.json"), "utf8")) as {
 const pageNames = config.navigation.groups.flatMap(({ pages }) => pages);
 const readme = readRoot("README.md");
 const publicText = [readme, ...pageNames.map(readPage)].join("\n");
+const opencodeRecording = readFileSync(
+  join(DOCS, "recordings", "opencode-1.17.13-navi-0.1.0.txt"),
+  "utf8",
+);
 const envExample = readRoot(".env.example");
 const testedModels = JSON.parse(readRoot("config/tested-models.json")) as {
   schema_version: string;
@@ -173,10 +177,33 @@ describe("public documentation release surface", () => {
     expect(opencode).toContain(".agents/skills/navi-interop/SKILL.md");
     expect(opencode).toContain("./.agents/bin/navi");
     expect(opencode).toContain("OpenCode and Navi make separate model calls.");
-    expect(opencode).toContain("git status --short");
-    expect(opencode).toContain("remained empty");
-    expect(opencode).not.toContain("A recorded terminal run");
+    expect(opencode).toContain("@machinepath/navi@0.1.0");
+    expect(opencode).toContain("/usr/bin/script");
+    expect(opencode).toContain("complete normalized recording");
+    expect(opencode).not.toContain("packed Navi");
+    expect(opencode).not.toContain("Navi requested the deep continuation");
     expect(opencode).not.toMatch(/\/Users\/|\/home\/[^<]/i);
+
+    for (const proof of [
+      "1.17.13",
+      "@machinepath/navi@0.1.0",
+      'Skill "navi-interop"',
+      '<project>/.agents/bin/navi "What command runs the test suite in this repository?',
+      "VERDICT: COMPLETE",
+      "OpenCode exit: 0",
+      "git status before: clean",
+      "git status after: clean",
+      "git status unchanged: yes",
+    ]) {
+      expect(opencodeRecording, `recording is missing ${proof}`).toContain(proof);
+    }
+    expect(opencodeRecording).not.toMatch(
+      /\/Users\/|\/private\/tmp\/navi-opencode|\/tmp\/navi-opencode/i,
+    );
+    expect(opencodeRecording.toLowerCase()).not.toContain(["mark", "berry"].join(""));
+    expect(opencodeRecording).not.toMatch(
+      /\b(?:npm_|xai-|sk-(?:proj|svcacct|ant-api\d{2}|or-v1)-)[A-Za-z0-9_-]{20,}\b/,
+    );
   });
 
   it("shows a real grounded result instead of describing an imagined one", () => {
