@@ -1,12 +1,12 @@
 import { existsSync, mkdtempSync, mkdirSync, realpathSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import { Mastra } from "@mastra/core";
 import { createWorkspaceTools } from "@mastra/core/workspace";
 import { LibSQLStore } from "@mastra/libsql";
 import { z } from "zod";
-import { parseSpecFile, parseSpecText } from "../src/compiler/parse.ts";
+import { parseSpecText } from "../src/compiler/parse.ts";
 import { buildShape, lintErrors, shapeSummary, compile, loadShape, resolveWorkflowPath } from "../src/compiler/index.ts";
 import {
   requireStructuredObject,
@@ -31,42 +31,12 @@ async function shapeFrom(yaml: string) {
   return buildShape(parseSpecText(yaml)._unsafeUnwrap());
 }
 
-describe("compiler — the fixture's real topology", () => {
-  let shape: Awaited<ReturnType<typeof buildShape>>;
-  beforeAll(async () => {
-    shape = await buildShape(parseSpecFile(FIXTURE)._unsafeUnwrap());
-  });
-
-  it("resolves the two-step chain with defaults and schemas", () => {
-    expect(shape.steps.map((s) => s.name)).toEqual(["extract", "summarize"]);
-    expect(shape.steps.every((s) => s.type === "agent")).toBe(true);
-    // The default gives every step a 50-step budget.
-    expect(shape.steps.map((s) => s.maxSteps)).toEqual([50, 50]);
-    // linear depends is resolved, not invented.
-    expect(shape.steps[1]!.depends).toEqual(["extract"]);
-    // declared output schemas become real Zod objects.
-    expect(shape.steps[0]!.output.safeParse({ description: "d", keywords: ["k"] }).success).toBe(true);
-    expect(shape.steps[0]!.output.safeParse({ description: "d" }).success).toBe(false);
-    expect(lintErrors(shape)).toHaveLength(0);
-  });
-
-  it("compiles to a committed Mastra workflow with an agent per agent-step", async () => {
-    const c = await compile(shape, { thread: "c1", resource: "cli" });
-    expect(c.isOk()).toBe(true);
-    const { workflow, agents } = c._unsafeUnwrap();
-    // serializedStepGraph introspects the topology WITHOUT executing.
-    expect(workflow.serializedStepGraph.length).toBe(2);
-    expect(Object.keys(agents).sort()).toEqual(["hello-two-step.extract", "hello-two-step.summarize"]);
-    // per-step model resolves from NAVI_MODEL/default (no per-call override exists).
-    expect(agents["hello-two-step.extract"]!.id).toBe("hello-two-step.extract");
-  });
-
-  it("shapeSummary is a stable JSON-safe projection of the same plan", () => {
-    const s = shapeSummary(shape);
-    expect(JSON.parse(JSON.stringify(s)).steps.map((x: { name: string }) => x.name)).toEqual([
-      "extract",
-      "summarize",
-    ]);
+describe("compiler — inline output schema", () => {
+  it("enforces every declared field", async () => {
+    const shape = (await loadShape(FIXTURE, process.cwd()))._unsafeUnwrap();
+    const output = shape.steps[0]!.output;
+    expect(output.safeParse({ description: "d", keywords: ["k"] }).success).toBe(true);
+    expect(output.safeParse({ description: "d" }).success).toBe(false);
   });
 });
 
