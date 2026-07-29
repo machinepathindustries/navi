@@ -78,14 +78,14 @@ Evidence strength:
 
 ### CS-012b — Pre-PR compiles successfully
 
-- **Status:** EXPOSED
-- **Evidence strength:** Moderate — the audit reproduced the compile gap, but no
-  surviving focused owner fails yet.
-- **Current evidence:** adding a missing required skill made real compilation
-  fail while all 614 tests passed.
-- **Close with:** a focused compile assertion plus the missing-skill mutation.
-- **Gate:** pending.
-- **Reopen when closed:** Pre-PR skill binding or compilation changes.
+- **Status:** CLOSED
+- **Evidence strength:** Strong — a focused test compiles the shipped Pre-PR
+  shape with the production workspace and asserts its reviewer agent identity.
+  Binding a nonexistent required skill made the test fail; restoration returned
+  it to green.
+- **Owner:** `tests/pre-pr-review.test.ts`.
+- **Gate:** GO on DeepSeek V4 Flash, one call, 44.8 seconds.
+- **Reopen when:** Pre-PR skill binding or compilation changes.
 
 ### CS-013 — Sharpen's compiled command resolves and runs its parser
 

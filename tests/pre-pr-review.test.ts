@@ -7,6 +7,7 @@ import { Mastra } from "@mastra/core";
 import { LibSQLStore } from "@mastra/libsql";
 import { parseSpecFile } from "../src/compiler/parse.ts";
 import { buildShape, loadShape, lintErrors, shapeSummary, compile } from "../src/compiler/index.ts";
+import { createWorkspace } from "../src/mastra/index.ts";
 import type { Shape } from "../src/compiler/index.ts";
 import type { WorkflowSpec } from "../src/compiler/spec.ts";
 
@@ -47,6 +48,16 @@ describe("pre-pr-review — shape + frozen readiness schema", () => {
     expect(review.outputFields).toEqual(["summary", "readiness", "coverage", "findings"]);
     // --shape carries the same resolved fields (model-free projection).
     expect(shapeSummary(shape).steps[1]!.output).toEqual(["summary", "readiness", "coverage", "findings"]);
+  });
+
+  it("compiles the shipped reviewer with its workspace bindings", async () => {
+    const compiled = await compile(
+      shape,
+      { thread: "ppr", resource: "cli" },
+      createWorkspace(process.cwd()),
+    );
+    expect(compiled.isOk()).toBe(true);
+    expect(Object.keys(compiled._unsafeUnwrap().agents)).toEqual(["pre-pr-review.review"]);
   });
 
   it("freezes the readiness contract: readiness∈ready|not_ready + code-review-compatible findings", () => {
