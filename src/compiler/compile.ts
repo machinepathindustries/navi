@@ -19,7 +19,6 @@ import {
 } from "../mastra/schema-retry.ts";
 import { resolvePoppedSkills } from "../mastra/pop-skills.ts";
 import { sessionStateContextFilter } from "../mastra/session-state-context-filter.ts";
-import { assembleJudgePrefetch, judgePrefetchEnabled } from "../search/judge-prefetch.ts";
 import { errStr } from "../err.ts";
 import { zodIssues } from "../contracts/whisper.ts";
 
@@ -40,9 +39,7 @@ file:line you actually read. Prefer parallel tool calls when reading or
 searching multiple locations in one turn, rather than one at a time.
 `;
 
-// basePath is the consumer workspace root selected by `-w`. Prefetch is skipped
-// when callers omit it.
-export type Runtime = { thread: string; resource: string; basePath?: string };
+export type Runtime = { thread: string; resource: string };
 export type Compiled = { workflow: ReturnType<typeof createWorkflow>; agents: Record<string, Agent> };
 
 // `compile` is async because a `skills.only` pop reads each named skill's full
@@ -154,10 +151,6 @@ function interpolate(template: string, ctx: Record<string, unknown>): string {
 
 // --- steps ---
 
-// Prefetch requires a non-empty workspace path; accepting an empty string would
-// turn the read into a cwd-rooted operation.
-const hasBasePath = (v: unknown): v is string => typeof v === "string" && v.length > 0;
-
 async function buildStep(
   wfName: string,
   rs: ResolvedStep,
@@ -208,21 +201,7 @@ async function buildStep(
             outputSchema: rs.output,
             execute: async (p) => {
               const ctx = buildCtx(priorNames, p);
-              let prompt = interpolate(rs.prompt, ctx);
-              // Judge prefetch appends source windows without replacing the judge's
-              // tools. It is enabled by default and can be disabled with
-              // NAVI_JUDGE_PREFETCH=0/off/false.
-              // No IO occurs unless the guard holds.
-              prompt = match({ on: judgePrefetchEnabled(wfName, rs.name), base: runtime.basePath })
-                .with({ on: true, base: P.when(hasBasePath) }, ({ base }) => {
-                  const pref = assembleJudgePrefetch(base, ctx);
-                  const next = `${prompt}\n\n${pref.block}`;
-                  process.stderr.write(
-                    `navi: judge-prefetch ${pref.windows.length} windows ${pref.durationMs}ms · ${pref.locations.length} cites\n`,
-                  );
-                  return next;
-                })
-                .otherwise(() => prompt);
+              const prompt = interpolate(rs.prompt, ctx);
               return runAgent(agent, rs, prompt, runtime).match(
                 (out) => out,
                 (message) => {

@@ -1127,11 +1127,9 @@ async function runVerb(
   // outside an external workspace's filesystem boundary.
   const workspace = createWorkspace(basePath);
   const runWorkspace = createWorkspace(basePath, { skills: false });
-  // basePath scopes judge prefetch to the selected workspace:
-  // the edge-walk judge step peeks real cited-file bytes rooted at the -w root.
   const compiled = await (await compile(
     shape,
-    { thread: sessionId, resource: "cli", basePath },
+    { thread: sessionId, resource: "cli" },
     workspace,
   )).match(
     async (v) => v,

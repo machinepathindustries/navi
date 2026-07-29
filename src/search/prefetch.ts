@@ -99,9 +99,8 @@ function groupHitsByPath(hits: PreflightHit[]): Map<string, number[]> {
     .otherwise(() => strict);
 }
 
-// Shared window geometry for MAP and judge prefetch. Exported so both paths use
-// the same bounded reader.
-export function windowAroundAnchors(
+// Bounded window geometry for MAP prefetch.
+function windowAroundAnchors(
   path: string,
   content: string,
   anchors: number[],
@@ -137,21 +136,6 @@ export function windowAroundAnchors(
         });
     })
     .exhaustive();
-}
-
-// Path-guarded peek of a single file window. Model-free; Result-style via null on miss.
-export function peekFileWindow(
-  basePath: string,
-  path: string,
-  anchors: number[],
-  opts?: { before?: number; after?: number },
-): PrefetchedWindow | null {
-  // Failure is an intentional collapse to null (best-effort prefetch).
-  return resolveContainedPath(basePath, path)
-    .mapErr(formatResolveErr)
-    .andThen((abs) => readText(abs).mapErr((m) => m))
-    .map((content) => windowAroundAnchors(path, content, anchors, opts))
-    .match((w) => w, () => null);
 }
 
 function windowFor(path: string, content: string, anchors: number[]): PrefetchedWindow | null {
