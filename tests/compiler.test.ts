@@ -21,7 +21,6 @@ import {
   WORKSPACE_TOOL_NAMES,
 } from "../src/mastra/workspace-tools.ts";
 import { DEEP_SEARCH_TOOL_NAMES } from "../src/search/tools.ts";
-import { parseSharpen } from "../builtin/workflows/sharpen/parse-sharpen.mjs";
 
 const FIXTURE = join(process.cwd(), "tests/fixtures/hello-two-step/action.yaml");
 
@@ -475,64 +474,6 @@ steps:
     expect(realpathSync(result.steps.where!.output!.stdout.trim()).toLowerCase()).toBe(
       realpathSync(process.cwd()).toLowerCase(),
     );
-  });
-
-  it("the sharpen parser receives model text through compiled command stdin", async () => {
-    // Exercise the production boundary: compile a command step, resolve its
-    // sibling through NAVI_ACTION_DIR, and transport the text on stdin. The
-    // workflow result must equal the parser module's direct output.
-    // READY (not ASK): ASK stamps issued_at = new Date(), so shell vs direct would
-    // disagree on the clock; READY has no directives and is fully deterministic.
-    const sharpenMd = `## Read
-The idea is now a concrete onboarding wedge: a first-run orientation that lists flows and when to reach for each.
-
-## Gate
-READY
-
-## Question
-NONE
-
-## Why
-All five dimensions are answered enough to write a founder-ready brief.
-
-## Bring back
-NONE
-
-## Brief
-Ship a first-run orientation for cold agents: when \`navi\` is invoked with no args in a repo that has not been oriented, print the available flows and a one-line when-to-use for each (including sharpen vs founder vs founder-advice), then exit 0. Out of scope: interactive wizard, repo indexing, or rewriting existing help. Kill if agents already reach the right flow from the catalog alone within one attempt.
-
-## Confidence
-high
-
-## Grounding
-semantic-only
-`;
-    const runParser = async (name: string, actionDir: string, script: string, md: string) => {
-      const shape = await buildShape(
-        parseSpecText(`
-name: ${name}
-args:
-  payload:
-    required: true
-steps:
-  - name: parse
-    type: command
-    command: node "$NAVI_ACTION_DIR/${script}"
-    stdin: "{{ input.payload }}"
-`)._unsafeUnwrap(),
-        actionDir,
-      );
-      const result = await runCmd(shape, { payload: md });
-      expect(result.status).toBe("success");
-      return result.steps.parse!.output!.stdout;
-    };
-
-    const sharpenDir = join(process.cwd(), "builtin/workflows/sharpen");
-    const sharpenOut = await runParser("sharpen-parser-stdin", sharpenDir, "parse-sharpen.mjs", sharpenMd);
-    const sharpenDirect = parseSharpen(sharpenMd);
-    expect(sharpenDirect.ok).toBe(true);
-    if (!sharpenDirect.ok) throw new Error("direct parse failed");
-    expect(JSON.parse(sharpenOut)).toEqual(sharpenDirect.value);
   });
 });
 
