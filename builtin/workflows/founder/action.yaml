@@ -14,11 +14,10 @@ args:
       The decision, artifact, or question to judge. Name a file/diff/plan to get
       artifact-grounded judgment; ask an abstract "how should we…" for advice.
 
-# Two steps, one lane. The judge emits the five-header MARKDOWN
-# contract as plain text — deliberately NO structured output, so the cheapest
-# models can run the lane. A separate deterministic
-# command step parses that text into the verdict object; a parse failure is an
-# honest workflow failure (exit 1), never a guessed verdict.
+# One step, one lane. The judge emits the existing VerdictSchema directly.
+# Navi's shared structured-output boundary validates the object and fails
+# honestly when the model cannot satisfy it; this workflow does not maintain a
+# second Markdown protocol and parser around the same contract.
 steps:
   # `skills.only: [founder]` force-pops the founder doctrine's full body into this
   # agent's instructions (compile.ts resolvePoppedSkills) so a small model is never
@@ -69,28 +68,6 @@ steps:
       input. If grounding is too thin to say GO, return REFINE and name exactly
       what is missing — do not bounce it back.
 
-      Emit ONLY the verdict, as plain markdown with EXACTLY these five headers,
-      each present once, in this order. Write NOTHING before the first header —
-      no preamble, no narration of your process, no code fences:
-
-      ## Verdict
-      ## Take
-      ## Grounding points
-      ## Decision rules
-      ## What not to do
-
-      ## Verdict is exactly one of GO, REFINE, or REJECT. ## Take is one plain
-      sentence: the decision and its spine. The three list sections are tight
-      bullets — for REFINE or REJECT they name the concrete fix or the concrete
-      failure, not a generic caution.
-
-  # The deterministic parser receives the emission through the command step's
-  # stdin channel, so model text never enters the shell command string. The
-  # parser's stdout is this step's — and therefore the run's — final
-  # output, so the verdict JSON rides in envelope.result.stdout.
-  - name: parse
-    type: command
-    depends: judge
-    command: node "$NAVI_ACTION_DIR/parse-verdict.mjs"
-    stdin: |
-      {{ steps.judge.text }}
+      Return only the verdict object required by the declared output schema.
+      The loaded founder skill owns the meaning of each field.
+    output: verdict.schema.ts

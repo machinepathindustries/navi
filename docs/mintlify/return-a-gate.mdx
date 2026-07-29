@@ -91,31 +91,28 @@ A `handoff` has this shape:
 Navi renders a handoff only when the named catalog flow is active and accepts a
 single required string argument.
 
-## Parse model text before it becomes a gate
+## Declare the model's result at the agent boundary
 
-For model-written judgments, keep the model contract readable and make the
-final step deterministic:
-
-1. An agent emits fixed markdown headings.
-2. A command step passes that text to a parser beside `action.yaml`.
-3. The parser validates the headings and prints GateDecision JSON.
-4. A parse error exits nonzero; it never guesses a gate.
-
-The command step uses `$NAVI_ACTION_DIR` so the parser resolves from the active
-flow directory. Model text belongs in `stdin`, where Navi sends it to the parser
-without interpolating it into the shell command:
+When the model owns the judgment and its result maps directly to a schema,
+declare that schema on the agent step:
 
 ```yaml
-- name: parse
-  type: command
-  depends: judge
-  command: node "$NAVI_ACTION_DIR/parse-gate.mjs"
-  stdin: "{{ steps.judge.text }}"
+- name: judge
+  type: agent
+  prompt: |
+    Review the supplied evidence and return the declared decision.
+  output: gate.schema.ts
 ```
 
-Do not build a heredoc around model or user text. The text can contain any
-delimiter or shell syntax; `stdin` preserves it as data instead of asking the
-shell to parse it.
+Navi validates the result against the schema, gives the model a bounded chance
+to correct an invalid emission, and fails the run if no valid object arrives.
+A Markdown-heading parser around the same fields adds a second protocol without
+adding a safety boundary.
+
+Keep a deterministic command step only when it owns a real transformation that
+the model should not decide, such as deriving protocol state or identifiers. If
+such a command consumes model or user text, pass it through `stdin`; never
+interpolate that text into a shell command.
 
 ## Keep Founder verdicts separate
 

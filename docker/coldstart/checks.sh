@@ -94,12 +94,13 @@ command -v navi-cli >/dev/null \
   && ok "navi-cli npm bin points at bin/navi.mjs" \
   || bad "navi-cli npm bin target is $(readlink "$NAVI_CLI" 2>/dev/null || printf missing)"
 [ -f "$PACKAGE/builtin/workflows/edge-walk/judge.schema.ts" ] \
-  && [ -f "$PACKAGE/builtin/workflows/founder/parse-verdict.mjs" ] \
+  && [ -f "$PACKAGE/builtin/workflows/founder/verdict.schema.ts" ] \
+  && [ -f "$PACKAGE/builtin/workflows/sharpen/parse-sharpen.mjs" ] \
   && [ -f "$PACKAGE/agent/skills/navi-interop/SKILL.md" ] \
   && [ -f "$PACKAGE/config/tested-models.json" ] \
   && [ -f "$PACKAGE/.env.example" ] \
   && [ -x "$PACKAGE/bin/navi-local" ] \
-  && ok "runtime builtins, schemas, parsers, model ground truth, env template, interop skill, and local launcher shipped" \
+  && ok "runtime builtins, schemas, parser, model ground truth, env template, interop skill, and local launcher shipped" \
   || bad "the tarball omitted a runtime artifact"
 [ ! -e "$APP/node_modules/.bin/vitest" ] \
   && [ ! -e "$APP/node_modules/.bin/mastra" ] \

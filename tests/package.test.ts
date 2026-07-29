@@ -112,7 +112,7 @@ describe("npm package — the tarball is the product boundary", () => {
     ).toEqual(expected);
   });
 
-  it("contains the Node entry, package metadata, interop skill, schemas, and command parsers", () => {
+  it("contains the Node entry, package metadata, interop skill, and Founder workflow schema", () => {
     const paths = packed.files.map(({ path }) => path);
     expect(paths).toEqual(
       expect.arrayContaining([
@@ -126,7 +126,6 @@ describe("npm package — the tarball is the product boundary", () => {
         "agent/skills/navi-interop/SKILL.md",
         "builtin/workflows/founder/action.yaml",
         "builtin/workflows/founder/verdict.schema.ts",
-        "builtin/workflows/founder/parse-verdict.mjs",
       ]),
     );
     expect(paths.filter((path) => path.endsWith("/navi-interop/SKILL.md"))).toEqual([

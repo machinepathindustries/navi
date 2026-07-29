@@ -21,7 +21,6 @@ import {
   WORKSPACE_TOOL_NAMES,
 } from "../src/mastra/workspace-tools.ts";
 import { DEEP_SEARCH_TOOL_NAMES } from "../src/search/tools.ts";
-import { parseVerdict } from "../builtin/workflows/founder/parse-verdict.mjs";
 import { parseSharpen } from "../builtin/workflows/sharpen/parse-sharpen.mjs";
 
 const FIXTURE = join(process.cwd(), "tests/fixtures/hello-two-step/action.yaml");
@@ -442,7 +441,7 @@ steps:
   });
 
   it("differs correctly between a builtin and a consumer-tier fixture workflow (per-step)", async () => {
-    const builtinPath = join(process.cwd(), "builtin/workflows/founder/action.yaml");
+    const builtinPath = join(process.cwd(), "builtin/workflows/sharpen/action.yaml");
     const consumerPath = join(process.cwd(), "tests/fixtures/echo-command/action.yaml");
     const builtin = (await loadShape(builtinPath, process.cwd()))._unsafeUnwrap();
     const consumer = (await loadShape(consumerPath, process.cwd()))._unsafeUnwrap();
@@ -450,7 +449,7 @@ steps:
     const cDir = consumer.steps.find((s) => s.type === "command")!.actionDir;
     expect(isAbsolute(bDir)).toBe(true);
     expect(isAbsolute(cDir)).toBe(true);
-    expect(bDir).toBe(join(process.cwd(), "builtin/workflows/founder"));
+    expect(bDir).toBe(join(process.cwd(), "builtin/workflows/sharpen"));
     expect(cDir).toBe(join(process.cwd(), "tests/fixtures/echo-command"));
     expect(bDir).not.toBe(cDir);
   });
@@ -478,26 +477,10 @@ steps:
     );
   });
 
-  it("founder + sharpen parsers receive model text through compiled command stdin", async () => {
+  it("the sharpen parser receives model text through compiled command stdin", async () => {
     // Exercise the production boundary: compile a command step, resolve its
     // sibling through NAVI_ACTION_DIR, and transport the text on stdin. The
     // workflow result must equal the parser module's direct output.
-    const founderMd = `## Verdict
-GO
-
-## Take
-The honest-degradation design is right — a missing key returns a Blocked answer, never a fabricated one.
-
-## Grounding points
-- The command step branches on key presence and emits a skip sentinel.
-- The synthesis step returns a Blocked answer when the JSON is a skip/error.
-
-## Decision rules
-- Degrade to an honest Blocked, never invent sources.
-
-## What not to do
-- Do not wire a silent fallback that fabricates results.
-`;
     // READY (not ASK): ASK stamps issued_at = new Date(), so shell vs direct would
     // disagree on the clock; READY has no directives and is fully deterministic.
     const sharpenMd = `## Read
@@ -544,16 +527,11 @@ steps:
       return result.steps.parse!.output!.stdout;
     };
 
-    const founderDir = join(process.cwd(), "builtin/workflows/founder");
     const sharpenDir = join(process.cwd(), "builtin/workflows/sharpen");
-    const founderOut = await runParser("founder-parser-stdin", founderDir, "parse-verdict.mjs", founderMd);
     const sharpenOut = await runParser("sharpen-parser-stdin", sharpenDir, "parse-sharpen.mjs", sharpenMd);
-    const founderDirect = parseVerdict(founderMd);
     const sharpenDirect = parseSharpen(sharpenMd);
-    expect(founderDirect.ok).toBe(true);
     expect(sharpenDirect.ok).toBe(true);
-    if (!founderDirect.ok || !sharpenDirect.ok) throw new Error("direct parse failed");
-    expect(JSON.parse(founderOut)).toEqual(founderDirect.value);
+    if (!sharpenDirect.ok) throw new Error("direct parse failed");
     expect(JSON.parse(sharpenOut)).toEqual(sharpenDirect.value);
   });
 });

@@ -13,9 +13,9 @@ args:
       The question or situation to think through — name a file/diff/plan to ground
       the counsel on real code.
 
-# One step, one lane. Counsel is free prose with NO structured output or parse
-# step (unlike `founder`, whose five-header GO/REFINE/REJECT contract is the
-# JUDGMENT lane and must not change). The step's text IS the result. Catalog /
+# One step, one lane. Counsel is free prose with NO structured output (unlike
+# `founder`, whose GO/REFINE/REJECT object is the JUDGMENT lane and must not
+# change). The step's text IS the result. Catalog /
 # front door / whisper pick this up from name + description alone (data-driven
 # routing).
 steps:

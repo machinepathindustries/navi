@@ -2139,10 +2139,8 @@ function emit(
 // The human/JSON summary is a one-line gloss of the last successful step's own
 // output — read from the per-step results (reliable), not the workflow-level output
 // (which the chain does not always surface). The step's output is UNWRAPPED first
-// (the same command-JSON unwrap `finalOutput` applies), so a command-tail workflow
-// like founder is glossed from its parsed verdict object — NOT from the previous
-// agent step's raw markdown, which would leak the judge's whole five-header wall of
-// text (and any narration preamble) as the headline.
+// using the same command-JSON rule as `finalOutput`, so command-tail workflows
+// surface their actual JSON object rather than their command wrapper.
 function summarize(shape: Shape, steps: unknown): string {
   const rec = stepRunMapOf(steps);
   // Reverse shape order, successes only, first non-blank gloss wins — the same
@@ -2213,8 +2211,7 @@ function isJsonObject(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
-// When the final step is a command step whose stdout is a JSON OBJECT (founder's
-// verdict, and any future JSON-emitting command tail), surface the parsed object
+// When the final step is a command step whose stdout is a JSON OBJECT, surface the parsed object
 // as `result` — the {stdout,stderr,exitCode} wrapper is command-step plumbing, not
 // the workflow's actual output, and envelope.result is defined as "the validated
 // object a workflow's last step produced" (envelope.ts). Keyed on the OUTPUT SHAPE,

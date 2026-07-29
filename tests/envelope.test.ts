@@ -152,9 +152,9 @@ describe("navi.run.v2 envelope", () => {
 describe("navi.run.v2 envelope — verdict-aware next", () => {
   const withResult = (result: unknown) => successEnvelope({ ...base, summary: "done", result });
   // Full VerdictSchema shape (RUN seam validates the whole object; partials are
-  // not-a-verdict). Mirrors what parse-verdict / the json-command fixture emit.
+  // not-a-verdict). Mirrors what Founder / the json-command fixture emit.
   const verdict = (over: Record<string, unknown>) => ({
-    take: "",
+    take: "decision",
     grounding_points: [] as string[],
     decision_rules: [] as string[],
     what_not_to_do: [] as string[],

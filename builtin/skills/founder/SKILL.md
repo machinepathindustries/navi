@@ -133,35 +133,30 @@ mismatch as a real bug, not prompt drift.
 - If you gathered no fresh evidence, say "reasoning from provided facts
   only" rather than implying a proof pass happened.
 
-## Output contract
+## Judgment output contract
 
-Write plain markdown — no JSON, no envelope. Emit exactly these five
-headers, each exactly once, in this order. A parser strips them into the
-verdict schema downstream, so **the headers are the machine contract and
-must appear verbatim**:
+On a judgment run, return the verdict through the structured output contract
+declared by the invoking workflow. The workflow owns serialization; this skill
+owns what the fields mean:
 
-```
-## Verdict
-## Take
-## Grounding points
-## Decision rules
-## What not to do
-```
-
-- **Verdict** — exactly one of `GO` | `REFINE` | `REJECT`.
-- **Take** — one plain sentence: the decision and its spine.
-- **Grounding points** — what the verdict rests on, as tight bullets. In
+- **`verdict`** — exactly one of `GO` | `REFINE` | `REJECT`.
+- **`take`** — one plain sentence: the decision and its spine.
+- **`grounding_points`** — what the verdict rests on, as tight items. In
   judgment mode, concrete artifact evidence (file:line, a command result,
   the plan text you read), observed facts kept distinct from doctrine. In
   advice mode, the doctrine and reasoning it stands on — **no invented
   file:line**.
-- **Decision rules** — the rule(s) that decided it, as tight bullets, stated
+- **`decision_rules`** — the rule(s) that decided it, as tight items, stated
   so the next agent can make the same call again without you.
-- **What not to do** — the specific traps to avoid here, as tight bullets.
+- **`what_not_to_do`** — the specific traps to avoid here, as tight items.
 
-Keep every section tight — bullets, not prose paragraphs. If REFINE or
-REJECT, Decision rules and What not to do must name the concrete fix or the
-concrete failure, not a generic caution.
+Keep every item tight, not a prose paragraph. If REFINE or REJECT,
+`decision_rules` and `what_not_to_do` must name the concrete fix or the concrete
+failure, not a generic caution.
+
+When the invoking workflow explicitly asks for counsel rather than judgment,
+follow that workflow's counsel contract instead. Do not force a verdict onto the
+`founder-advice` lane.
 
 ## The rubrics
 
