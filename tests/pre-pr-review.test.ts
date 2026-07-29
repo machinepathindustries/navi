@@ -227,7 +227,7 @@ describe("pre-pr-review — the diff collector is injection-safe, bounded, and h
     expect(r.status).toBe("failed");
   });
 
-  it("a multi-token base (whitespace) is refused (one ref only, no arg smuggling)", async () => {
+  it("a whitespace-bearing base fails closed", async () => {
     const r = await runBase("main --output=/tmp/x");
     expect(r.status).toBe("failed");
   });

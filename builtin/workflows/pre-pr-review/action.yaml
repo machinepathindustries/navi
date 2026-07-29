@@ -17,8 +17,7 @@ args:
       The base ref to diff this branch against, e.g. "main", "develop",
       "origin/main", or a commit sha. The review always covers base...HEAD (the
       three-dot range — what this branch adds since its merge-base with base,
-      i.e. the PR's own contents). Must be a single ref (no whitespace). Defaults
-      to main.
+      i.e. the PR's own contents). Defaults to main.
 
 steps:
   # Collect the branch diff in a command step so dynamic input is handled
@@ -30,11 +29,10 @@ steps:
   # data. node then runs `git` via spawnSync as
   # ARGV (no shell), so the base token reaches git as a single literal revision.
   # A dash guard rejects a base starting with "-" (a real ref never does; blocks
-  # arg-smuggled flags like --output=… that would make git WRITE a file); a
-  # whitespace guard rejects a multi-token base (defense-in-depth — one ref
-  # only). A bad/unknown base makes git exit nonzero → the step fails → exit 1
-  # (honesty guard, no silent success). node is guaranteed present (navi is a
-  # node CLI); require() resolves because `node -e` defaults to CommonJS.
+  # arg-smuggled flags like --output=… that would make git WRITE a file). A
+  # bad/unknown base makes git exit nonzero → the step fails → exit 1 (honesty
+  # guard, no silent success). node is guaranteed present (navi is a node CLI);
+  # require() resolves because `node -e` defaults to CommonJS.
   #
   # LARGE-DIFF STRATEGY (this repo's own branch diff vs main is ~294KB/40 files):
   # the collector ALWAYS emits the complete `git diff --stat` inventory (every
@@ -46,7 +44,7 @@ steps:
   - name: collect_diff
     type: command
     command: >-
-      node -e 'const cp=require("node:child_process");let r="";process.stdin.on("data",d=>r+=d).on("end",()=>{const base=(r.replace(/\n+$/,"").trim())||"main";if(base.startsWith("-")){process.stderr.write("navi pre-pr-review: refusing a base ref that starts with \"-\" (looks like a git flag, not a revision): "+base+"\n");process.exit(2);}if(/\s/.test(base)){process.stderr.write("navi pre-pr-review: base must be a single git ref (no whitespace): "+base+"\n");process.exit(2);}const range=base+"...HEAD";const git=a=>cp.spawnSync("git",["--no-pager",...a],{encoding:"utf8",maxBuffer:1<<28});const stat=git(["diff","--stat",range]);if(stat.status!==0){process.stderr.write(stat.stderr||("git diff --stat failed for "+range+"\n"));process.exit(stat.status||1);}const full=git(["diff",range]);if(full.status!==0){process.stderr.write(full.stderr||("git diff failed for "+range+"\n"));process.exit(full.status||1);}const BUDGET=200000;const parts=full.stdout.split(/(?=^diff --git )/m).filter(Boolean);let included="",bytes=0,inFull=0,total=0;const statOnly=[];for(const p of parts){const m=p.match(/^diff --git a\/.+ b\/(.+)$/m);const file=m?m[1]:null;if(file)total++;if(bytes+p.length<=BUDGET){included+=p;bytes+=p.length;if(file)inFull++;}else if(file)statOnly.push(file);}const bounded=statOnly.length>0;const meta={base,range,files_changed:total,bounded,files_reviewed_in_full:inFull,files_stat_only:statOnly};process.stdout.write("PRE-PR-REVIEW-META "+JSON.stringify(meta)+"\n\n=== FILE INVENTORY (git diff --stat "+range+") - COMPLETE, every changed file listed ===\n"+stat.stdout+"\n=== UNIFIED DIFF ("+range+") - "+(bounded?"BOUNDED to "+BUDGET+" bytes: "+inFull+" of "+total+" files below in full; "+statOnly.length+" files are STAT-ONLY (in the inventory above, NOT read line-by-line): "+statOnly.join(", "):"COMPLETE, all "+total+" files below in full")+" ===\n"+included);})'
+      node -e 'const cp=require("node:child_process");let r="";process.stdin.on("data",d=>r+=d).on("end",()=>{const base=(r.replace(/\n+$/,"").trim())||"main";if(base.startsWith("-")){process.stderr.write("navi pre-pr-review: refusing a base ref that starts with \"-\" (looks like a git flag, not a revision): "+base+"\n");process.exit(2);}const range=base+"...HEAD";const git=a=>cp.spawnSync("git",["--no-pager",...a],{encoding:"utf8",maxBuffer:1<<28});const stat=git(["diff","--stat",range]);if(stat.status!==0){process.stderr.write(stat.stderr||("git diff --stat failed for "+range+"\n"));process.exit(stat.status||1);}const full=git(["diff",range]);if(full.status!==0){process.stderr.write(full.stderr||("git diff failed for "+range+"\n"));process.exit(full.status||1);}const BUDGET=200000;const parts=full.stdout.split(/(?=^diff --git )/m).filter(Boolean);let included="",bytes=0,inFull=0,total=0;const statOnly=[];for(const p of parts){const m=p.match(/^diff --git a\/.+ b\/(.+)$/m);const file=m?m[1]:null;if(file)total++;if(bytes+p.length<=BUDGET){included+=p;bytes+=p.length;if(file)inFull++;}else if(file)statOnly.push(file);}const bounded=statOnly.length>0;const meta={base,range,files_changed:total,bounded,files_reviewed_in_full:inFull,files_stat_only:statOnly};process.stdout.write("PRE-PR-REVIEW-META "+JSON.stringify(meta)+"\n\n=== FILE INVENTORY (git diff --stat "+range+") - COMPLETE, every changed file listed ===\n"+stat.stdout+"\n=== UNIFIED DIFF ("+range+") - "+(bounded?"BOUNDED to "+BUDGET+" bytes: "+inFull+" of "+total+" files below in full; "+statOnly.length+" files are STAT-ONLY (in the inventory above, NOT read line-by-line): "+statOnly.join(", "):"COMPLETE, all "+total+" files below in full")+" ===\n"+included);})'
     stdin: |
       {{ input.base }}
 
