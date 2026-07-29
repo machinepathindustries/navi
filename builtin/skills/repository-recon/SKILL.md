@@ -49,13 +49,6 @@ same externally visible effect without passing through the code in question.
 This is the exact shape of a partially wired feature: one path was updated, a
 sibling was not.
 
-## Use a similar implementation as a reference
-
-If an analogous, already-shipped feature exists, find how *it* is wired end to
-end and compare shape. A conspicuous absence — every sibling feature is
-registered in the same router or registry, and the new one is not — is a fact
-worth reporting.
-
 ## Output: file:line facts, no verdict
 
 Report what was and was not found — the trigger (or "no trigger found"), the
