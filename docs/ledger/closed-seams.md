@@ -66,14 +66,15 @@ Evidence strength:
 
 ### CS-009 — Quick grader failures fail closed to deep
 
-- **Status:** EXPOSED
-- **Evidence strength:** Moderate — the audit reproduced the fail-open gap, but
-  no surviving focused owner fails yet.
-- **Current evidence:** reverting the fail-closed wiring passed all 614 tests.
-- **Close with:** throw, invalid-object, non-`stop`, and positive-control tests,
-  plus the fail-open mutation.
-- **Gate:** pending.
-- **Reopen when closed:** grader disposition or deep-handoff rendering changes.
+- **Status:** CLOSED
+- **Evidence strength:** Strong — focused tests cover a thrown grader call, an
+  invalid structured object, a non-`stop` finish, and a valid positive control.
+  Changing only the failure result's `escalate: true` to `false` failed all three
+  failure cases while the positive control stayed green; restoration returned
+  all four to green.
+- **Owner:** `tests/grounding-stage.test.ts`.
+- **Gate:** GO on DeepSeek V4 Flash, one call, 51.8 seconds.
+- **Reopen when:** grader disposition or deep-handoff rendering changes.
 
 ### CS-012b — Pre-PR compiles successfully
 
