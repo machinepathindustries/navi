@@ -13,11 +13,11 @@ args:
       The question or situation to think through — name a file/diff/plan to ground
       the counsel on real code.
 
-# One step, one lane. Counsel is free prose under a four-header markdown contract —
-# deliberately NO structured output and NO parse step (unlike `founder`, whose five-
-# header GO/REFINE/REJECT contract is the JUDGMENT lane and must not change). The
-# step's text IS the result. Catalog / front door / whisper pick this up from
-# name + description alone (data-driven routing).
+# One step, one lane. Counsel is free prose with NO structured output or parse
+# step (unlike `founder`, whose five-header GO/REFINE/REJECT contract is the
+# JUDGMENT lane and must not change). The step's text IS the result. Catalog /
+# front door / whisper pick this up from name + description alone (data-driven
+# routing).
 steps:
   # `skills.only: [founder]` force-pops the founder doctrine's full body into this
   # agent's instructions (compile.ts resolvePoppedSkills) so a small model is never
@@ -39,6 +39,10 @@ steps:
       rubrics in your instructions inform your thinking, but the output is
       COUNSEL: no GO/REFINE/REJECT, no gate.
 
+      If you need tools, your first action must be a tool call. Write nothing
+      before or between tool calls; emit text only once, after tool work is
+      complete.
+
       Request under counsel:
       {{ input.request }}
 
@@ -55,11 +59,6 @@ steps:
       Never ask the human a question back; if grounding is too thin, say plainly
       what is missing and give the best counsel available anyway.
 
-      Emit plain markdown with EXACTLY these four headers, once each, in order.
-      Write NOTHING before the first header — no preamble, no narration of your
-      process, no code fences:
-
-      ## What you're really asking
-      ## Your options
-      ## My counsel
-      ## What would change my mind
+      Begin directly with the counsel. Use the structure the question needs.
+      Call the conclusion a recommendation, never a verdict, and do not force it
+      into a fixed template.
