@@ -42,14 +42,14 @@ Evidence strength:
 
 ### CS-004 — Founder verdict text is trimmed and nonempty
 
-- **Status:** EXPOSED
-- **Evidence strength:** Moderate — the audit reproduced the gap, but no
-  surviving focused owner fails yet.
-- **Current evidence:** weakening `VerdictText` to `z.string()` passed all 614
-  tests.
-- **Close with:** a focused schema test plus the same weakening mutation.
-- **Gate:** pending.
-- **Reopen when closed:** the shared text schema or its focused owner changes.
+- **Status:** CLOSED
+- **Evidence strength:** Strong — a focused schema test proves trimming and
+  rejects whitespace-only text in `take` and every verdict array. Weakening
+  `VerdictText` to `z.string()` failed that test; restoration returned it to
+  green.
+- **Owner:** `tests/envelope.test.ts`.
+- **Gate:** GO on DeepSeek V4 Flash, one call, 24.7 seconds.
+- **Reopen when:** the shared text schema or its focused owner changes.
 
 ### CS-007c — Founder, Founder Advice, and Code Search retain the exact shared read-only toolset
 
