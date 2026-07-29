@@ -35,16 +35,21 @@ These records are formatted as the initial closed-seams ledger:
   required.
 - **UNPROVEN** — the audit did not complete a mutation that isolates the named
   contract. UNPROVEN is never evidence that a seam is closed.
+- **MIXED** — the deleted assertion block contained more than one contract and
+  the completed experiments produced different verdicts. Each sub-verdict must
+  carry its own mutation evidence.
 
 Existing source text, type declarations, import relationships, old landing
 verdicts, and statements that a test “should” catch a break are not proof.
 
 ## Method and audit integrity
 
-For each deleted protection, the audit changed the smallest current owner that
-would violate the named contract, then ran either the directly implicated test
-or the full 614-test suite. A contract is marked CLOSED only when the failure
-observably follows from that mutation.
+For each protection given a CLOSED or EXPOSED mutation verdict, the audit
+changed the smallest current owner that would violate the named contract, then
+ran either the directly implicated test or the full 614-test suite. A contract
+is marked CLOSED only when the failure observably follows from that mutation.
+Experiments interrupted before they isolated the contract are listed as
+UNPROVEN rather than inferred from source structure.
 
 The first `4960e49` run used a cross-worktree `node_modules` symlink and produced
 10 `gate-path` failures caused by absolute package-prefix contamination. Those
@@ -806,8 +811,9 @@ only the separate 24-call-per-arm `maxSteps: 16` sensitivity sample.
 9. Median ON/OFF latency ratio is at most 0.85; p95 ratio is at most 1.05.
 10. ON/OFF cost-per-correct-verdict ratio is at most 1.10.
 11. In the separate `maxSteps: 16` pressure sensitivity cell, ON has zero false
-    CLEAR outcomes and is no more than 2 percentage points less accurate than
-    OFF.
+    CLEAR outcomes and at least as many correct calls as OFF. With 24 calls per
+    arm, one fewer correct call is a 4.17-point deficit and therefore exceeds
+    the 2-point tolerance.
 
 If any condition fails, **KEEP `b0388ad`**. Report all cells, including negative
 or inconclusive ones; do not tune the criteria after seeing results.
@@ -980,8 +986,9 @@ The repeated push notice is GitHub Dependabot alert **#1**:
 - CVSS v4: 2.1
 - affected versions: `<= 3.0.97`
 - first patched version: none published
-- repository alert:
-  `https://github.com/machinepathindustries/navi/security/dependabot/1`
+- public advisory:
+  `https://github.com/advisories/GHSA-866g-f22w-33x8`
+- repository Dependabot alert: `#1` (visible only to authorized maintainers)
 
 The lock contains two affected copies:
 
@@ -1005,7 +1012,8 @@ controls and record this as an accepted low-severity release risk.
 
 This campaign is **not closed** by the current suite. It removed substantial
 test machinery, but destructive proof found both genuine duplicates and live
-seams with no owner. The CLOSED records above may be committed as the first
-closed-seams entries. Every EXPOSED record requires either a focused surviving
-owner, an explicit product-level retirement decision, or the preregistered
-evaluation before the campaign can be represented as fully guarded.
+seams with no owner. The CLOSED records above can seed the first closed-seams
+ledger. Every EXPOSED record requires either a focused surviving owner, an
+explicit product-level retirement decision, or the preregistered evaluation.
+Every UNPROVEN record requires the missing isolated mutation before the
+campaign can be represented as fully guarded.
