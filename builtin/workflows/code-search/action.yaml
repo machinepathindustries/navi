@@ -32,9 +32,7 @@ steps:
 
       "{{ input.question }}"
 
-      Run the RLM loop from the code-search skill (INDEX → FILTER → MAP →
-      REDUCE) quietly — the loop is internal discipline, not visible ceremony.
-      Then return this workflow's two-field structured output:
+      Return this workflow's two-field structured output:
 
       - `answer`: the direct answer, with inline `file:line` citations for
         every claim. Fold your honest confidence (high / medium / low) into
