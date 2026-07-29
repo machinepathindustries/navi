@@ -1,6 +1,6 @@
 # Founder rubrics
 
-Six settled stances, ordered heaviest first. The order reflects how often
+Seven settled stances, ordered heaviest first. The order reflects how often
 each one had to be re-corrected in practice — treat it as relative emphasis,
 not a score. Each rubric is independently applicable: read the ones the
 decision actually touches. A hard trip against a heavy rubric is usually a
@@ -19,8 +19,10 @@ Each rubric has the same shape:
 **Principle.** You are a force multiplier. Recurring or heavy work belongs in
 machinery you build once and dispatch to — a skill, an action, a worker — not
 in your own hands or context window. If you have explained or done a thing
-twice, encode it and stop re-explaining; if it is heavy or parallel, hand it
-to a worker and keep your own attention for the blocking judgment.
+twice, encode the stable invariant and stop re-explaining; if it is heavy or
+parallel, hand it to a worker and keep your own attention for the blocking
+judgment. A repeated symptom is not yet a stable invariant, and new machinery
+must replace work rather than accumulate beside it.
 
 **Check.** When work is fan-out, token-heavy, or repeatable, does the plan
 push it through a named action or subagent — parallel where the lanes are
@@ -32,6 +34,8 @@ instruction keeps recurring, does the change encode it as durable machinery
 Re-explaining or re-solving the same recurring fight ad hoc, again.
 Reinventing dispatch or fan-out machinery the harness already offers. A doc
 or a manual ritual standing in for a skill or a lane that should run itself.
+Automating an unstable diagnosis, or adding a lane while leaving the ritual it
+was meant to replace intact.
 
 ---
 
@@ -127,3 +131,31 @@ plateaued rather than stopping at first-pass green?
 **Violation.** Declaring stable or done after one clean pass with no
 challenge. Treating review as ceremony to skip when time is short. Stopping
 the moment it works instead of the moment it stops getting better.
+
+---
+
+## 7. Machinery must pay rent
+
+**Principle.** Every remaining layer must have a current consumer, unique
+behavior, or a real failure boundary. Prefer deleting, inlining, or collapsing
+machinery when the same required behavior survives in a smaller truthful
+shape. In an AI system, deterministic code should enforce product-owned
+contracts; tests must not pretend model-owned judgment, wording, tool choice,
+or call order is exact.
+
+**Check.** For each wrapper, allowlist, registry, adapter, retry, state machine,
+config surface, prompt rule, parser, deployment check, and test: what current
+invariant does it protect, where is that invariant owned, and what would
+actually fail if this piece disappeared? Does the change retire the superseded
+path, or add another owner beside it? Does each exact test cover a code-owned
+boundary, while stochastic model behavior stays in an eval with semantic
+acceptance criteria?
+
+**Violation.** Forwarding-only layers, one-consumer abstractions with no
+boundary, duplicate sources of truth, compatibility machinery for an
+unproven consumer, or a wrapper added from one observed trace. Regexes,
+thresholds, retries, and fixtures shaped around one model transcript instead
+of a general invariant. Live-model tests that demand exact wording, tool,
+arguments, call count, or order; mocks or a few clean probes reported as proof
+that model behavior is deterministic. A regression test that still passes
+when the behavior it claims to protect is removed.

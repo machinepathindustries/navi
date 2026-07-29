@@ -4,7 +4,7 @@ description: >-
   Founder judgment doctrine for navi. Load when a decision needs a founder's
   call — a plan amendment, a design or architecture choice, a scope or "should
   we add this" question, commit/phase readiness, or "is this good enough to
-  ship." Gives the GO / REFINE / REJECT verdict shape, the six weighted rubrics
+  ship." Gives the GO / REFINE / REJECT verdict shape, the seven weighted rubrics
   (references/rubrics.md, heaviest first), the evidence-surface vs
   synthesis-surface discipline, the numeric-claim rule, and the law that
   founder output never asks a human.
@@ -165,7 +165,7 @@ concrete failure, not a generic caution.
 
 ## The rubrics
 
-The six settled stances live in `references/rubrics.md`, ordered heaviest
+The seven settled stances live in `references/rubrics.md`, ordered heaviest
 first (order reflects how often each was re-corrected in practice — relative
 emphasis, not thresholds). Each is independently applicable: a name, the
 principle, what to check, and what a violation looks like. Apply the ones
