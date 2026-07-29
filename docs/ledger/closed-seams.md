@@ -101,15 +101,15 @@ Evidence strength:
 
 ### CS-015 — Edge Walk's composite consumes the canonical Directive schema
 
-- **Status:** EXPOSED
-- **Evidence strength:** Moderate — the audit reproduced the schema-binding gap,
-  but no surviving focused owner fails yet.
-- **Current evidence:** replacing `z.array(Directive)` with `z.array(z.any())`
-  passed all 614 tests.
-- **Close with:** one malformed-directive composite test plus the same schema
-  mutation.
-- **Gate:** pending.
-- **Reopen when closed:** the composite or canonical Directive binding changes.
+- **Status:** CLOSED
+- **Evidence strength:** Strong — a focused identity assertion owns the
+  composite's canonical `Directive` binding. Replacing `z.array(Directive)` with
+  `z.array(z.any())` failed that assertion; restoration returned it to green.
+- **Owner:** `tests/whisper.test.ts`.
+- **Gates:** REFINE on DeepSeek V4 Flash in 49.7 seconds for a redundant
+  behavioral composition test; after narrowing to the exact binding seam, GO in
+  40.1 seconds. Two calls total.
+- **Reopen when:** the composite or canonical `Directive` binding changes.
 
 ## Retired contracts
 
