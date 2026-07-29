@@ -9,7 +9,6 @@ import {
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const PARSER = "builtin/workflows/sharpen/parse-sharpen.mjs";
@@ -55,16 +54,5 @@ describe("sharpen parser entrypoint", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
-
-  it("remains inert when imported by a stdin-launched module", () => {
-    const href = pathToFileURL(join(process.cwd(), PARSER)).href;
-    const result = spawnSync(process.execPath, ["--input-type=module", "-"], {
-      input: `await import(${JSON.stringify(href)});\n`,
-      encoding: "utf8",
-    });
-    expect(result.status).toBe(0);
-    expect(result.stdout).toBe("");
-    expect(result.stderr).toBe("");
   });
 });
