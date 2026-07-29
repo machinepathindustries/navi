@@ -7,10 +7,9 @@ import { fileURLToPath } from "node:url";
 // emission text written directly to child stdin by Navi's command-step runtime,
 // so arbitrary model text never enters the shell command string.
 //
-// The MODEL emits seven simple judgment headers (plus Confidence/Grounding as
-// fixed words); the PARSER owns ALL GateDecision mechanics — gate enum, directive
-// assembly, confidence number mapping, and handoff sibling. A malformed
-// composite must not enter the next turn; a bad header is a loud failure.
+// The MODEL emits eight semantic fields. The PARSER owns GateDecision mechanics:
+// gate mapping, directive assembly, confidence mapping, and the handoff sibling.
+// A malformed composite must not enter the next turn.
 //
 // A parse failure is an HONEST failure, never a guessed gate: main() writes a
 // diagnostic to stderr and exits 1, so the command step fails → the workflow
@@ -34,30 +33,24 @@ const HEADERS = [
 // Word → GateDecision.confidence (parser-owned; the model never emits a number).
 const CONFIDENCE_MAP = { high: 0.9, medium: 0.6, low: 0.3 };
 
-// Locate a "## <Title>" marker ANYWHERE, not anchored to line start: the RLM
-// glues the header onto its own trailing narration with no newline
-// ("…to be thorough.## Read"). Inter-word whitespace is flexible and the match
-// is case-insensitive. This tolerance can only accept more
-// valid-intent output, never invent a gate (the gate token is validated
-// separately). Preamble before the first header is dropped for free, because
-// section bodies are only ever sliced BETWEEN header positions.
+// Headers are the parser's protocol boundary, so accept flexible whitespace and
+// case but require each marker to occupy its own line as the prompt specifies.
 function headerRegex(title) {
   const body = title
     .split(" ")
     .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("[ \\t]+");
-  return new RegExp(`##[ \\t]*${body}`, "gi");
+  return new RegExp(`^[ \\t]*##[ \\t]+${body}[ \\t]*$`, "gim");
 }
 
 function fail(error) {
   return { ok: false, error };
 }
 
-// Literal NONE token: surrounding whitespace + trailing punctuation only.
-// Do NOT loosen to `^none\b` — a real brief opening "None of the existing
-// lanes…" must still parse as prose, not as the NONE sentinel.
+// NONE is an exact protocol token. A brief beginning "None of the existing
+// lanes…" remains prose.
 function isNoneLiteral(s) {
-  return /^\s*none[.!?,;:]*\s*$/i.test(String(s ?? ""));
+  return String(s ?? "").trim().toLowerCase() === "none";
 }
 
 // A section body → its list items. If any line carries a list marker, use only
@@ -88,19 +81,9 @@ function collapse(body) {
     .trim();
 }
 
-function extractGate(body) {
-  const m = collapse(body).match(/\b(ASK|READY|HUMAN)\b/i);
-  return m ? m[1].toUpperCase() : undefined;
-}
-
-function extractConfidence(body) {
-  const m = collapse(body).match(/\b(high|medium|low)\b/i);
-  return m ? m[1].toLowerCase() : undefined;
-}
-
-function extractGrounding(body) {
-  const m = collapse(body).match(/\b(grounded|semantic-only)\b/i);
-  return m ? m[1].toLowerCase() : undefined;
+function exactChoice(body, choices) {
+  const value = collapse(body).toLowerCase();
+  return choices.find((choice) => choice === value);
 }
 
 // Stable directive id for this round's forcing question. Pure function of the
@@ -113,16 +96,6 @@ function directiveId(question) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 40);
   return `sharpen-${slug || "question"}`;
-}
-
-// Completion criteria for a forcing_question directive — deterministic, never
-// model-emitted. The parent closes the directive by answering the question with
-// the required evidence named in required_evidence.
-function completionCriteria(question, bringBack) {
-  return [
-    `Parent answers the forcing question with concrete content covering: ${bringBack.join("; ")}`,
-    `The answer addresses: ${question}`,
-  ];
 }
 
 export function parseSharpen(input) {
@@ -153,7 +126,7 @@ export function parseSharpen(input) {
   const read = collapse(section["Read"]);
   if (!read) return fail(`## Read is empty`);
 
-  const gateWord = extractGate(section["Gate"]);
+  const gateWord = exactChoice(section["Gate"], ["ask", "ready", "human"])?.toUpperCase();
   if (!gateWord) return fail(`## Gate must contain exactly one of ASK, READY, HUMAN`);
 
   const questionRaw = collapse(section["Question"]);
@@ -174,10 +147,10 @@ export function parseSharpen(input) {
   const briefNone = isNoneLiteral(briefRaw);
   const brief = briefNone ? null : briefRaw;
 
-  const confidenceWord = extractConfidence(section["Confidence"]);
+  const confidenceWord = exactChoice(section["Confidence"], ["high", "medium", "low"]);
   if (!confidenceWord) return fail(`## Confidence must be exactly one of: high | medium | low`);
 
-  const groundingWord = extractGrounding(section["Grounding"]);
+  const groundingWord = exactChoice(section["Grounding"], ["grounded", "semantic-only"]);
   if (!groundingWord) return fail(`## Grounding must be exactly one of: grounded | semantic-only`);
 
   const confidence = CONFIDENCE_MAP[confidenceWord];
@@ -205,7 +178,10 @@ export function parseSharpen(input) {
       action: questionRaw,
       targets: [],
       required_evidence: bringBack,
-      completion_criteria: completionCriteria(questionRaw, bringBack),
+      completion_criteria: [
+        `Parent answers the forcing question with concrete content covering: ${bringBack.join("; ")}`,
+        `The answer addresses: ${questionRaw}`,
+      ],
       stop_conditions: [],
       issued_at: issuedAt,
     };

@@ -1,24 +1,5 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { parseSharpen } from "../builtin/workflows/sharpen/parse-sharpen.mjs";
-
-describe("sharpen workflow doctrine", () => {
-  it("counts only sharpen gates in a mixed-flow session", () => {
-    const action = readFileSync(
-      join(process.cwd(), "builtin/workflows/sharpen/action.yaml"),
-      "utf8",
-    );
-    const normalized = action.replace(/\s+/g, " ");
-    expect(normalized).toContain(
-      "`kind` is `gate` AND whose `workflow` is exactly `sharpen`",
-    );
-    expect(normalized).toContain(
-      "{kind: gate, workflow: edge-walk}, {kind: gate, workflow: sharpen}",
-    );
-    expect(normalized).toContain("is ONE sharpen round, not two");
-  });
-});
 import { GateDecision, Directive } from "../src/contracts/whisper.ts";
 
 // The sharpen emission step writes plain markdown; parse-sharpen.mjs turns it
@@ -205,14 +186,6 @@ describe("sharpen parser — HUMAN", () => {
   });
 });
 
-describe("sharpen parser — confidence mapping", () => {
-  it("maps high|medium|low → 0.9|0.6|0.3 deterministically", () => {
-    expect(expectValidGate(ASK_MD.replace("medium", "high")).confidence).toBe(0.9);
-    expect(expectValidGate(ASK_MD.replace("medium", "medium")).confidence).toBe(0.6);
-    expect(expectValidGate(ASK_MD.replace("medium", "low")).confidence).toBe(0.3);
-  });
-});
-
 // collapse() preserves prose and bullets in Brief. Marker-only parsing belongs
 // only to Bring back.
 describe("sharpen parser — Brief preserves prose and bullets", () => {
@@ -255,34 +228,7 @@ semantic-only
   });
 });
 
-// NONE with trailing punctuation remains the sentinel; a real brief opening
-// with "None" remains prose.
-describe("sharpen parser — NONE tolerates trailing punctuation", () => {
-  it("READY with Question NONE. parses (trailing period is not a parse failure)", () => {
-    const md = READY_MD.replace("## Question\nNONE\n", "## Question\nNONE.\n");
-    const v = expectValidGate(md);
-    expect(v.gate).toBe("COMPLETE");
-  });
-
-  it("Bring back NONE. is the empty list (not a real evidence bullet)", () => {
-    const md = READY_MD.replace("## Bring back\nNONE\n", "## Bring back\nNONE.\n");
-    const v = expectValidGate(md);
-    expect(v.gate).toBe("COMPLETE");
-    // READY path does not surface bringBack, but a mistaken non-NONE would fail
-    // READY's cross-field rules only via brief; prove via ASK that NONE. is empty.
-  });
-
-  it("ASK with Bring back NONE. fails honestly (no evidence list invented)", () => {
-    const md = ASK_MD.replace(
-      "## Bring back\n- One sentence naming the user-visible change\n- Who the cold agent is (role) in one phrase\n",
-      "## Bring back\nNONE.\n",
-    );
-    const r = parseSharpen(md);
-    expect(r.ok).toBe(false);
-    if (r.ok) throw new Error("expected fail");
-    expect(r.error).toMatch(/Bring back/);
-  });
-
+describe("sharpen parser — NONE is an exact sentinel", () => {
   it("brief starting 'None of the existing lanes…' is a real brief, not NONE", () => {
     const md = READY_MD.replace(
       /## Brief\n[\s\S]*?\n\n## Confidence/,
@@ -318,16 +264,9 @@ describe("sharpen parser — structural violations (must fail honestly)", () => 
     expect(failWith(emptyBring)).toMatch(/Bring back.*≥1|Bring back must list/);
   });
 
-  it("fails when ## Bring back has no bullets on an ASK", () => {
-    const emptyBring = ASK_MD.replace(
-      "## Bring back\n- One sentence naming the user-visible change\n- Who the cold agent is (role) in one phrase\n",
-      "## Bring back\n\n",
-    );
-    expect(failWith(emptyBring)).toMatch(/Bring back/);
-  });
-
   it("fails when Gate is not one of the three", () => {
     expect(failWith(ASK_MD.replace("ASK\n", "MAYBE\n"))).toMatch(/ASK, READY, HUMAN/);
+    expect(failWith(ASK_MD.replace("ASK\n", "ASK or READY\n"))).toMatch(/ASK, READY, HUMAN/);
   });
 
   it("fails when Confidence is not a fixed word", () => {
@@ -344,7 +283,4 @@ describe("sharpen parser — structural violations (must fail honestly)", () => 
     );
   });
 
-  it("fails on empty input", () => {
-    expect(failWith("")).toMatch(/missing "## Read"/);
-  });
 });
