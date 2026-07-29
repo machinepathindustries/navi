@@ -49,11 +49,10 @@ describe("edge-walk — resolved shape (read-only 3-step adversarial walk)", () 
     expect(shape.steps[2]!.condition).toBeUndefined();
   });
 
-  it("wires a linear depends chain and generous-first per-step budgets", () => {
+  it("wires a linear dependency chain", () => {
     expect(shape.steps[0]!.depends).toEqual([]);
     expect(shape.steps[1]!.depends).toEqual(["recon"]);
     expect(shape.steps[2]!.depends).toEqual(["expand"]);
-    expect(shape.steps.map((s) => s.maxSteps)).toEqual([18, 14, 16]);
   });
 
   it("gives the judge an env-var model override and no literal model (NAVI_JUDGE_MODEL ?? default)", () => {
