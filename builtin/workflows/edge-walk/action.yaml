@@ -183,13 +183,13 @@ steps:
 
       Decide:
 
-      - If the event is a PLAN/interpretation with NO evidence yet: the seam is
-        unproven. Emit gate DIRECT and exactly ONE directive that names the exact
-        seam and the exact evidence that would close it — a runtime call path from
-        a real trigger to the changed symbol, plus fresh evidence at the boundary
-        of the outcome being claimed. `required_evidence` and `completion_criteria`
-        each name a concrete artifact to bring back. Put the directive's id in
-        `blocking_directive_ids`.
+      - If the event is a PLAN/interpretation with NO evidence yet: choose the gate
+        per the adjudication skill. Emit exactly ONE directive that names the
+        exact seam and the exact evidence that would close it — a runtime call
+        path from a real trigger to the changed symbol, plus fresh evidence at the
+        boundary of the outcome being claimed. `required_evidence` and
+        `completion_criteria` each name a concrete artifact to bring back. Put the
+        directive's id in `blocking_directive_ids`.
 
       - If the event RETURNS evidence for a directive: match it to the OPEN
         directive in the session above and apply the five-check test to every item,

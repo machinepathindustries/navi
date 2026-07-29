@@ -3,8 +3,9 @@ name: adjudication
 description: >-
   Judgment discipline for weighing evidence and choosing a gate: claims are
   never evidence, so re-read the cited locations yourself; a five-check test for
-  weak vs strong evidence; how to disambiguate CLEAR / REPAIR / BLOCKED /
-  ESCALATE when more than one looks plausible; and the one-directive economy.
+  weak vs strong evidence; how to disambiguate CLEAR / DIRECT / REPAIR /
+  BLOCKED / ESCALATE when more than one looks plausible; and the one-directive
+  economy.
   Load when a step must evaluate returned evidence against a directive and
   decide the disposition — the method a judge applies, not the shape of what it
   writes down.
@@ -74,6 +75,9 @@ situation:
 
 - **CLEAR** — the specific directive in front of you is satisfied by strong
   evidence. This is the checkpoint clearing, not necessarily the whole session.
+- **DIRECT** — no concrete defect is established, but the claim or seam remains
+  unproven. Direct the next investigation and name the exact evidence that
+  would resolve it.
 - **REPAIR** — you have a concrete finding that something *is broken*: the
   evidence itself shows the failure (the path is wired, but old data fails to
   load). REPAIR names the defect and directs a fix; it does not ask for more
