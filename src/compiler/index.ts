@@ -13,7 +13,7 @@ import { buildShape, type Shape } from "./shape.ts";
 export { buildShape, shapeSummary } from "./shape.ts";
 export type { Shape, ResolvedStep, LintFinding } from "./shape.ts";
 export { lintErrors } from "./shape.ts";
-export { compile } from "./compile.ts";
+export { compile, resolveStructuredObject, structuredOutputOptions } from "./compile.ts";
 export type { Compiled, Runtime } from "./compile.ts";
 
 // Built-in content is rooted at the installed package, never at the target

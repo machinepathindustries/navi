@@ -433,8 +433,8 @@ export function agentStreamToolOptions(tools: readonly string[]): { activeTools:
 // formats differ: some reject schemas alongside tools, while others complete a
 // tool-free structured call with an undefined object. Navi therefore uses one
 // portable path for every provider. Prompt injection asks for JSON; the generic
-// schema-retry processor and final safeParse enforce the declared schema locally,
-// so this does not weaken the contract.
+// final safeParse enforces the declared schema locally. Workflow steps may also
+// add the schema-retry processor; callers that should fail closed need not retry.
 export function structuredOutputOptions(
   schema: z.ZodTypeAny,
 ): { schema: z.ZodTypeAny; jsonPromptInjection: true; errorStrategy: "warn" } {

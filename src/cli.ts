@@ -51,7 +51,15 @@ import {
   type SessionState,
   type SessionTurn,
 } from "./contracts/whisper.ts";
-import { compile, loadShape, lintErrors, shapeSummary, type Shape } from "./compiler/index.ts";
+import {
+  compile,
+  loadShape,
+  lintErrors,
+  shapeSummary,
+  resolveStructuredObject,
+  structuredOutputOptions,
+  type Shape,
+} from "./compiler/index.ts";
 import { COMMAND_OUTPUT } from "./compiler/output-schema.ts";
 import { planInstall, applyInstall, renderInstall, uninstall, resolveTarget } from "./install.ts";
 import { DEFAULT_MAX_STEPS, DEFAULT_MODEL, naviAgent } from "./mastra/agents/navi.ts";
@@ -78,6 +86,9 @@ import { buildOneShotInstructions } from "./search/oneshot-instructions.ts";
 import {
   buildGraderInstructions,
   GROUNDING_PASS_MESSAGE,
+  GroundingGradeSchema,
+  renderGroundingGrade,
+  type GroundingGrade,
 } from "./search/grader-instructions.ts";
 import { buildCatalog, renderCatalog, flowMenu, nextMoves, isSingleRequiredString, argToken } from "./catalog.ts";
 import { deepHandoffCommand, invocationPrefix, shellQuote } from "./invocation.ts";
@@ -154,10 +165,9 @@ type Flags = {
   reasoningEffort?: string | undefined;
   // Bare-query lane. DEFAULT (no flag) = the QUICK lane: a single tool-free synthesis
   // turn over the deterministic preflight+prefetch context, followed by a terse
-  // thinking-off grounding GRADE; if the grade flags the answer (or its Confidence is
-  // Low) the CLI prints the exact `--deep` command to run next without
-  // auto-escalating. `--deep` runs the deeper, tool-backed agentic lane at
-  // full budget instead.
+  // thinking-off grounding GRADE. Only a validated COMPLETE + no grade stands;
+  // every other result prints the exact `--deep` command without auto-escalating.
+  // `--deep` runs the deeper, tool-backed agentic lane at full budget instead.
   deep: boolean;
   // -w overrides the workspace root (default cwd) for the bare query, run, and
   // catalog; validation happens at the point of use (resolveBasePath), so a bad
@@ -827,15 +837,15 @@ async function bareQuery(query: string, flags: Flags): Promise<never> {
   // --- Quick lane: grounding grade (the confident-wrongness guard) ---------
   // A terse, thinking-off evidence-check over the SAME evidence + the answer. The
   // grader is the principled home for thinking-off — a mechanical support-check, not
-  // open-ended synthesis. NO parser: the verdict is printed, and the whisper below
-  // reads it with a one-line substring check. On a grader failure the answer already
-  // succeeded and printed, so degrade honestly (note it, empty verdict) — never abort.
+  // open-ended synthesis. Mastra validates the small object; Navi renders it. On a
+  // grader failure the answer already succeeded and printed, so hand off to --deep
+  // rather than claiming the unavailable grade passed.
   const graderPrompt = `${prompt}\n\n=== ANSWER PRODUCED (grade this) ===\n${answerText}`;
   // Thinking-off is resolved fresh (NOT ...options) so the grader is deliberately
   // thinking-off regardless of the answer's --thinking; on a non-deepseek model
   // toMastraOptions simply drops the deepseek-only field.
   const graderOpts = toMastraOptions(model, resolveSettings(model, { thinking: "disabled" }));
-  const graderText = await ResultAsync.fromPromise(
+  const graderResult = await ResultAsync.fromPromise(
     agent.generate(graderPrompt, {
       instructions: buildGraderInstructions(),
       memory: { thread: `${thread}-grade`, resource: "cli" },
@@ -844,37 +854,45 @@ async function bareQuery(query: string, flags: Flags): Promise<never> {
       // Without this the shared workspace tools tempt it to "search" and it dies at
       // maxSteps:1 with narration and no verdict (observed live).
       activeTools: [],
+      structuredOutput: structuredOutputOptions(GroundingGradeSchema),
       ...graderOpts,
     }),
     errStr,
-  ).match(
-    (res) => res.text ?? "",
+  ).andThen((res) =>
+    match(res.finishReason)
+      .with("stop", () =>
+        resolveStructuredObject(
+          "grounding-grade",
+          res.object,
+          res.text,
+          GroundingGradeSchema,
+        ).map((grade) => grade as GroundingGrade),
+      )
+      .otherwise((reason) =>
+        err(`grounding grade did not stop cleanly: finishReason=${reason}`),
+      ),
+  );
+  const graderText = graderResult.match(
+    renderGroundingGrade,
     (message) => {
-      process.stderr.write(`\nnavi: grade stage failed (answer stands): ${message}\n`);
-      return "";
+      process.stderr.write(`\nnavi: grade stage failed (answer shown; deep handoff required): ${message}\n`);
+      return "Grounding grade unavailable — escalating conservatively.";
     },
   );
   process.stdout.write(`\n\n${rule("grounding check")}\n${graderText}\n`);
 
   // --- self-steering next command -------------------------------------------
-  // When the grade flags the answer (ESCALATE: yes)
-  // or the answer's own Confidence is Low, hand the caller the EXACT command that
-  // re-runs THIS query on the deep lane and let them decide. invocationPrefix() is
+  // Only a validated COMPLETE + no grade lets the quick answer stand. Every other
+  // valid grade, and every unavailable/invalid grade, hands the caller the EXACT
+  // command that re-runs THIS query on the deep lane. invocationPrefix() is
   // navi's own executable form (the portable bin name when installed, the tsx path in
   // a source checkout); -w keeps the SAME workspace and -t keeps the SAME session;
   // shellQuote keeps spaced/meta values pasteable into /bin/sh as one argument.
-  // Confidence is read off the LAST "Confidence" heading (not the whole body, which
-  // may mention "confidence" in prose) — a one-line text check, not a parser.
   const deepCmd = deepHandoffCommand(query, thread, flags.workspace);
-  const graderSaysEscalate = graderText.includes("ESCALATE: yes");
-  // Read the answer's final Confidence verdict. Match the heading token rather
-  // than arbitrary prose, tolerate Markdown separators, and use the last result.
-  const confMatches = [...answerText.matchAll(/confidence[\s:*#-]*(high|medium|low)\b/gi)];
-  const answerLowConfidence = confMatches.at(-1)?.[1]?.toLowerCase() === "low";
-  const why = match(graderSaysEscalate)
-    .with(true, () => "the grounding grade flagged it")
-    .with(false, () => "its own confidence is Low")
-    .exhaustive();
+  const graderSaysEscalate = graderResult.match(
+    (grade) => grade.verdict !== "COMPLETE" || grade.escalate,
+    () => true,
+  );
   // Catalog-derived "same question, different lens" list. INFORMATIONAL only —
   // never a handed command. The ⚠ branch's `${deepCmd}` stays THE ONLY handed
   // command; the pass branch still contains NO --deep command.
@@ -886,11 +904,11 @@ async function bareQuery(query: string, flags: Flags): Promise<never> {
   // A runnable `--deep` command appears only when the grounding result asks for it,
   // so an interop harness never escalates a passing quick answer.
   process.stdout.write(
-    match(graderSaysEscalate || answerLowConfidence)
+    match(graderSaysEscalate)
       .with(
         true,
         () =>
-          `\n${rule("next")}\n⚠ This quick answer may be incomplete or over-confident (${why}). For a deeper, tool-backed repository read, run:\n  ${deepCmd}\n${movesBlock}\n`,
+          `\n${rule("next")}\n⚠ This quick answer needs a deeper, tool-backed repository read. Run:\n  ${deepCmd}\n${movesBlock}\n`,
       )
       .with(
         false,
