@@ -88,15 +88,15 @@ Evidence strength:
 
 ### CS-013 — Sharpen's compiled command resolves and runs its parser
 
-- **Status:** EXPOSED
-- **Evidence strength:** Moderate — the audit reproduced the missing-command
-  gap, but no surviving focused owner fails yet.
-- **Current evidence:** changing the parser path to a nonexistent sibling passed
-  all 614 tests.
-- **Close with:** a focused compiled-command success test plus the missing-path
-  mutation.
-- **Gate:** pending.
-- **Reopen when closed:** the command, parser location, or package layout changes.
+- **Status:** CLOSED
+- **Evidence strength:** Strong — a focused keyless integration test derives
+  the real gate step from the shipped action, compiles and runs it with an
+  in-memory store, and parses its `DIRECT` output. Changing only the shipped
+  command to `parse-sharpen-missing.mjs` failed that test while the direct parser
+  test stayed green; restoration returned both to green.
+- **Owner:** `tests/sharpen-entrypoint.test.ts`.
+- **Gate:** GO on DeepSeek V4 Flash, one call, 125.6 seconds.
+- **Reopen when:** the command, parser location, or package layout changes.
 
 ### CS-015 — Edge Walk's composite consumes the canonical Directive schema
 
