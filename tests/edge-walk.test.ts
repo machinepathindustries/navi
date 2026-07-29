@@ -66,10 +66,6 @@ describe("edge-walk — resolved shape (read-only 3-step adversarial walk)", () 
     expect(judge.model).toBe(shape.defaultModel);
   });
 
-  it("displays the static initial obligation policy line", () => {
-    expect(shape.description?.endsWith("initial obligation policy: integration-completeness.")).toBe(true);
-  });
-
   it("declares a single json-typed required `input` arg", () => {
     // The whole stdin object binds to `input`. The `json` type
     // token makes the compiler validate it as z.unknown() so Mastra's input

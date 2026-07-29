@@ -53,10 +53,19 @@ Apply each check to every evidence item:
 5. Is it actually new information, or one agent's prior claim restated in
    different words? A restatement of a claim is not fresh evidence.
 
-Only an item that passes all five closes a blocking directive. One that fails
-on freshness or end-to-end tracing is unsupported: the directive stays open —
-DIRECT (keep investigating) or REPAIR (fix the named defect), not CLEAR — and
-you say plainly which check it failed.
+Apply the checks that match the decision's owner. Cross-layer wiring needs a
+fresh runtime or integration result; a pure deterministic schema, permission,
+or state contract can be closed by a focused test at that boundary; model-owned
+interpretation, tool choice, and semantic output need a live semantic eval, not
+assertions about exact tokens, call counts, or one internal trace. A captured
+workflow command, exit status, and result are runtime evidence. Do not demand a
+new test when the current outcome has already been exercised at its real
+boundary.
+
+Only an item that passes every applicable check closes a blocking directive.
+One that fails on freshness or end-to-end tracing is unsupported: the directive
+stays open — DIRECT (keep investigating) or REPAIR (fix the named defect), not
+CLEAR — and you say plainly which check it failed.
 
 ## Choosing the gate
 

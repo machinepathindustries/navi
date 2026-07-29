@@ -20,7 +20,6 @@ import {
 import { resolvePoppedSkills } from "../mastra/pop-skills.ts";
 import { sessionStateContextFilter } from "../mastra/session-state-context-filter.ts";
 import { assembleJudgePrefetch, judgePrefetchEnabled } from "../search/judge-prefetch.ts";
-import { assembleReconPrefetch, reconPrefetchEnabled } from "../search/recon-prefetch.ts";
 import { errStr } from "../err.ts";
 import { zodIssues } from "../contracts/whisper.ts";
 
@@ -210,28 +209,10 @@ async function buildStep(
             execute: async (p) => {
               const ctx = buildCtx(priorNames, p);
               let prompt = interpolate(rs.prompt, ctx);
-              // Recon prefetch appends ranked source windows without replacing the
-              // step's tools or output contract. It is enabled by default and can
-              // be disabled with NAVI_RECON_PREFETCH=0/off/false.
-              // assembleReconPrefetch performs IO, so it runs only when enabled
-              // with a non-empty basePath.
-              prompt = match({ on: reconPrefetchEnabled(wfName, rs.name), base: runtime.basePath })
-                .with({ on: true, base: P.when(hasBasePath) }, ({ base }) => {
-                  const stepName = match(rs.name)
-                    .with("expand", () => "expand" as const)
-                    .otherwise(() => "recon" as const);
-                  const pref = assembleReconPrefetch(base, ctx, stepName);
-                  const next = `${prompt}\n\n${pref.block}`;
-                  process.stderr.write(
-                    `navi: recon-prefetch step=${pref.step} ${pref.windows.length} windows ${pref.durationMs}ms · ${pref.terms.length} terms · ${pref.hits.length} hits\n`,
-                  );
-                  return next;
-                })
-                .otherwise(() => prompt);
               // Judge prefetch appends source windows without replacing the judge's
               // tools. It is enabled by default and can be disabled with
               // NAVI_JUDGE_PREFETCH=0/off/false.
-              // Same lazy shape as the recon arm above: no IO unless the guard holds.
+              // No IO occurs unless the guard holds.
               prompt = match({ on: judgePrefetchEnabled(wfName, rs.name), base: runtime.basePath })
                 .with({ on: true, base: P.when(hasBasePath) }, ({ base }) => {
                   const pref = assembleJudgePrefetch(base, ctx);

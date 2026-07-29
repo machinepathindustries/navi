@@ -6,7 +6,7 @@ description: >-
   at most one bounded directive. Structurally read-only (no write tools resolved;
   the vendored-code guard is active). The session continues on -t <session_id>;
   discovery is skipped only when the immediately prior edge-walk map has the
-  same revision; initial obligation policy: integration-completeness.
+  same revision.
 
 # Edge-walk is invoked with `--stdin`, and the entire JSON object binds to
 # `input`; the parent event is read as `{{ input.event }}`. The compiler
@@ -186,10 +186,13 @@ steps:
       - If the event is a PLAN/interpretation with NO evidence yet: the seam is
         unproven. Emit gate DIRECT and exactly ONE directive that names the exact
         seam and the exact evidence that would close it — a runtime call path from
-        a real trigger to the changed symbol, plus an integration test result
-        fresh for the current revision. `required_evidence` and
-        `completion_criteria` each name a concrete artifact to bring back. Put the
-        directive's id in `blocking_directive_ids`.
+        a real trigger to the changed symbol, plus fresh evidence at the boundary
+        of the outcome being claimed. For cross-layer wiring that may be an
+        integration result; for a pure deterministic contract, a focused test;
+        for model-owned behavior, a live semantic eval. Never require a test of a
+        preferred internal model trace. `required_evidence` and
+        `completion_criteria` each name a concrete artifact to bring back. Put
+        the directive's id in `blocking_directive_ids`.
 
       - If the event RETURNS evidence for a directive: match it to the OPEN
         directive in the session above and apply the five-check test to every item,
@@ -198,8 +201,8 @@ steps:
         function EXISTS — not that anything calls it: it fails the end-to-end
         check, so the directive stays OPEN and the gate stays DIRECT (or REPAIR if
         the evidence itself shows a concrete defect). Only when an item passes ALL
-        five checks — an inspectable call site on a real runtime path AND a test
-        result fresh for the current revision — do you CLEAR: empty
+        applicable checks — an inspectable call site on a real runtime path AND
+        fresh evidence at the matching boundary — do you CLEAR: empty
         `blocking_directive_ids`, and record the now-satisfied directive with ONE
         of exactly two shapes — EITHER carry it in `directives` with status
         `satisfied` and its ORIGINAL `required_evidence` and `completion_criteria`

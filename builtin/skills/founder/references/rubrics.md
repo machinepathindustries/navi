@@ -34,10 +34,15 @@ A pure schema, authorization, or membership contract may make an exact focused
 test the nearest boundary. Treat arduous setup, repeated fixtures, and
 prompt/source token assertions as leads to inspect, not proof; an exact string
 is testable only when it is itself the external contract. Keep one canonical
-owner per invariant and multiple layers only for distinct boundaries. In AI
-orchestration, try instructions, tool descriptions, simpler schemas, existing
-context, and native composition — including model-directed subagent fan-out — before
-deterministic routing, retries, trace detectors, or parsers.
+owner per invariant and multiple layers only for distinct boundaries. A flow's
+ownership surface includes compiler and runtime hooks selected by its workflow
+or step name, including environment-controlled prepasses outside its directory.
+An optimization earns deterministic machinery only when a measured current
+latency, cost, or quality contract fails without it; "fewer tool rounds" is a
+hypothesis, not a contract. In AI orchestration, try instructions, tool
+descriptions, simpler schemas, existing context, and native composition —
+including model-directed subagent fan-out — before deterministic routing,
+retries, trace detectors, or parsers.
 
 **Violation.** Model intelligence is compiled downward into heuristics that
 force one preferred trace. Tests and guards arrive before a working outcome and
