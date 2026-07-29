@@ -32,7 +32,7 @@ export const MEASUREMENT_DIGEST_INPUTS = [
   "scripts/provider-compat.mjs",
   "tests/fixtures/provider-compat",
 ];
-const ARTIFACT_SCHEMA_VERSION = "navi.provider-compat.v6";
+const ARTIFACT_SCHEMA_VERSION = "navi.provider-compat.v7";
 const ARTIFACT_KEYS = [
   "schema_version",
   "tested_at",
@@ -64,7 +64,6 @@ const LOCAL_RESULT_KEYS = [
   "metadata_host",
   "status",
   "attempts",
-  "lane_evidence",
   "key_present",
   "model_listed",
   "provider_catalog_verified",
@@ -75,39 +74,6 @@ const LOCAL_RESULT_KEYS = [
 const RESULT_KEYS = LOCAL_RESULT_KEYS.filter(
   (key) => key !== "key_present" && key !== "reason",
 );
-const LANE_EVIDENCE_KEYS = [
-  "quick_grounding",
-  "quick_grounding_grade_passed",
-  "deep_nonce_match",
-  "structured_schema_valid",
-  "structured_nonce_match",
-  "structured_read_route_declared",
-  "founder_verdict_schema_valid",
-  "founder_nonce_grounded",
-  "founder_read_route_declared",
-  "code_review_schema_valid",
-  "code_review_collect_diff_completed",
-  "code_review_planted_defect_detected",
-];
-const REQUIRED_LANE_EVIDENCE = {
-  quick: ["quick_grounding", "quick_grounding_grade_passed"],
-  deep: ["deep_nonce_match"],
-  structured: [
-    "structured_schema_valid",
-    "structured_nonce_match",
-    "structured_read_route_declared",
-  ],
-  founder: [
-    "founder_verdict_schema_valid",
-    "founder_nonce_grounded",
-    "founder_read_route_declared",
-  ],
-  "code-review": [
-    "code_review_schema_valid",
-    "code_review_collect_diff_completed",
-    "code_review_planted_defect_detected",
-  ],
-};
 const RESULT_STATUSES = new Set(["PASS", "FAIL", "BLOCKED", "NOT_TESTED"]);
 const LOCAL_BLOCK_REASONS = new Set(["account_quota", "rate_limit"]);
 
@@ -382,18 +348,11 @@ function modelForLane(provider, lane) {
   return lane === "quick" ? provider.models.quick : provider.models.workflow;
 }
 
-export function laneEvidence(overrides = {}) {
-  return Object.fromEntries(
-    LANE_EVIDENCE_KEYS.map((key) => [key, Boolean(overrides[key])]),
-  );
-}
-
 function resultRow({
   provider,
   lane,
   status,
   attempts,
-  evidence,
   keyPresent,
   modelListed,
   providerCatalogVerified,
@@ -409,7 +368,6 @@ function resultRow({
     metadata_host: provider.metadataHost,
     status,
     attempts,
-    lane_evidence: laneEvidence(evidence),
     key_present: Boolean(keyPresent),
     model_listed: Boolean(modelListed),
     provider_catalog_verified: Boolean(providerCatalogVerified),
@@ -431,7 +389,6 @@ export function notTestedRows(providers, processValues = {}, fileValues = {}) {
         lane,
         status: "NOT_TESTED",
         attempts: 0,
-        evidence: laneEvidence(),
         keyPresent: keyForProvider(provider, processValues, fileValues) !== null,
         modelListed: false,
         providerCatalogVerified: false,
@@ -608,25 +565,6 @@ export function artifactValidationErrors(artifact, raw = JSON.stringify(artifact
           errors.push(`result ${index}.${field} must be boolean`);
         }
       }
-      if (!hasOnlyFields(row.lane_evidence, LANE_EVIDENCE_KEYS)) {
-        errors.push(`result ${index}.lane_evidence has an invalid shape`);
-      } else {
-        const required = new Set(REQUIRED_LANE_EVIDENCE[row.lane] ?? []);
-        for (const key of LANE_EVIDENCE_KEYS) {
-          if (typeof row.lane_evidence[key] !== "boolean") {
-            errors.push(`result ${index}.lane_evidence.${key} must be boolean`);
-          } else if (!required.has(key) && row.lane_evidence[key]) {
-            errors.push(`result ${index}.lane_evidence.${key} belongs to another lane`);
-          }
-        }
-        if (
-          row.status === "PASS" &&
-          [...required].some((key) => row.lane_evidence[key] !== true)
-        ) {
-          errors.push(`result ${index} is missing evidence required for PASS`);
-        }
-      }
-
       if (!hasOnlyFields(row.timing, ["started_at", "duration_ms", "attempt_ms"])) {
         errors.push(`result ${index}.timing has an invalid shape`);
       } else {
@@ -665,11 +603,9 @@ export function artifactValidationErrors(artifact, raw = JSON.stringify(artifact
       }
       if (
         row.status === "NOT_TESTED" &&
-        (row.attempts !== 0 ||
-          row.timing.started_at !== null ||
-          Object.values(row.lane_evidence).some(Boolean))
+        (row.attempts !== 0 || row.timing.started_at !== null)
       ) {
-        errors.push(`result ${index} records evidence for a NOT_TESTED lane`);
+        errors.push(`result ${index} records execution for a NOT_TESTED lane`);
       }
     }
   }
@@ -1009,10 +945,6 @@ function laneAttempt(lane, context, env, timeoutMs) {
     const grounded = run.status === 0 && run.stdout.includes(context.nonce);
     return {
       ok: grounded && gradePassed,
-      evidence: laneEvidence({
-        quick_grounding: grounded,
-        quick_grounding_grade_passed: gradePassed,
-      }),
       blockReason: upstreamBlockReason(run.stderr),
       durationMs: run.durationMs,
     };
@@ -1035,9 +967,6 @@ function laneAttempt(lane, context, env, timeoutMs) {
     const nonceMatch = run.stdout.includes(context.nonce);
     return {
       ok: run.status === 0 && nonceMatch,
-      evidence: laneEvidence({
-        deep_nonce_match: nonceMatch,
-      }),
       blockReason: upstreamBlockReason(run.stderr),
       durationMs: run.durationMs,
     };
@@ -1079,11 +1008,6 @@ function laneAttempt(lane, context, env, timeoutMs) {
         schema &&
         nonceMatch &&
         readRouteDeclared,
-      evidence: laneEvidence({
-        structured_schema_valid: schema,
-        structured_nonce_match: nonceMatch,
-        structured_read_route_declared: readRouteDeclared,
-      }),
       blockReason: upstreamBlockReason(run.stderr),
       durationMs: run.durationMs,
     };
@@ -1121,11 +1045,6 @@ function laneAttempt(lane, context, env, timeoutMs) {
         schema &&
         nonceGrounded &&
         readRouteDeclared,
-      evidence: laneEvidence({
-        founder_verdict_schema_valid: schema,
-        founder_nonce_grounded: nonceGrounded,
-        founder_read_route_declared: readRouteDeclared,
-      }),
       blockReason: upstreamBlockReason(run.stderr),
       durationMs: run.durationMs,
     };
@@ -1152,11 +1071,6 @@ function laneAttempt(lane, context, env, timeoutMs) {
       schema &&
       collectDiffCompleted &&
       foundPlantedDefect,
-    evidence: laneEvidence({
-      code_review_schema_valid: schema,
-      code_review_collect_diff_completed: collectDiffCompleted,
-      code_review_planted_defect_detected: foundPlantedDefect,
-    }),
     blockReason: upstreamBlockReason(run.stderr),
     durationMs: run.durationMs,
   };
@@ -1179,15 +1093,6 @@ export function summarizeAttempts(attemptResults, metadataAuthenticated = false)
     passed,
     status: passed ? "PASS" : blocked ? "BLOCKED" : "FAIL",
     reason,
-    evidence: laneEvidence(
-      Object.fromEntries(
-        LANE_EVIDENCE_KEYS.map((key) => [
-          key,
-          attemptResults.length > 0 &&
-            attemptResults.every((result) => result.evidence[key]),
-        ]),
-      ),
-    ),
     attemptMs: attemptResults.map((result) => result.durationMs),
   };
 }
@@ -1287,7 +1192,6 @@ async function runProvider(provider, fileValues, options) {
           lane,
           status: "FAIL",
           attempts: 0,
-          evidence: laneEvidence(),
           keyPresent: true,
           modelListed,
           providerCatalogVerified: verification.providerCatalogVerified,
@@ -1323,7 +1227,6 @@ async function runProvider(provider, fileValues, options) {
         lane,
         status: summary.status,
         attempts: attemptResults.length,
-        evidence: summary.evidence,
         keyPresent: true,
         modelListed,
         providerCatalogVerified: verification.providerCatalogVerified,

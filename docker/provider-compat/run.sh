@@ -212,19 +212,15 @@ docker exec \
   ' \
   || DOCKER_STATUS=$?
 
-# A failed matrix never replaces the result artifact, but its already-redacted
-# booleans remain useful for diagnosis. Print only catalog/evidence fields that
-# the artifact schema permits; never print prompts, model output, or credentials.
+# A failed matrix never replaces the result artifact. Print only catalog fields
+# that the artifact schema permits; never print prompts, model output, or
+# credentials.
 if [ "$DOCKER_STATUS" -ne 0 ]; then
   [ ! -f "$HOST_OUTPUT" ] || node --input-type=module - "$HOST_OUTPUT" <<'__NAVI_PROVIDER_DIAGNOSTIC__'
 import { readFileSync } from "node:fs";
 
 const artifact = JSON.parse(readFileSync(process.argv[2], "utf8"));
 for (const row of artifact.results.filter((entry) => entry.status !== "PASS")) {
-  const evidence = Object.entries(row.lane_evidence)
-    .filter(([, present]) => present)
-    .map(([name]) => name)
-    .join(",");
   process.stderr.write(
     [
       `${row.provider}/${row.lane}`,
@@ -233,8 +229,6 @@ for (const row of artifact.results.filter((entry) => entry.status !== "PASS")) {
       `host_verified=${row.metadata_host_verified}`,
       `catalog_verified=${row.provider_catalog_verified}`,
       `attempts=${row.attempts}`,
-      `evidence=${evidence || "none"}`,
-      `reason=${row.reason ?? "none"}`,
     ].join(" ") + "\n",
   );
 }

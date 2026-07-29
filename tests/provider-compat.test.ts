@@ -27,7 +27,6 @@ import {
   hasOnlyResultFields,
   initializeAttemptRuntime,
   keyForProvider,
-  laneEvidence,
   modelIdsFromList,
   notTestedRows,
   parseArgs,
@@ -45,21 +44,6 @@ const ROOT = process.cwd();
 const SCRIPT = join(ROOT, "scripts", "provider-compat.mjs");
 const TEMP = mkdtempSync(join(tmpdir(), "navi-provider-test-"));
 
-type LaneEvidence = {
-  quick_grounding: boolean;
-  quick_grounding_grade_passed: boolean;
-  deep_nonce_match: boolean;
-  structured_schema_valid: boolean;
-  structured_nonce_match: boolean;
-  structured_read_route_declared: boolean;
-  founder_verdict_schema_valid: boolean;
-  founder_nonce_grounded: boolean;
-  founder_read_route_declared: boolean;
-  code_review_schema_valid: boolean;
-  code_review_collect_diff_completed: boolean;
-  code_review_planted_defect_detected: boolean;
-};
-
 type ArtifactRow = {
   provider: string;
   model: string;
@@ -67,7 +51,6 @@ type ArtifactRow = {
   metadata_host: string;
   status: string;
   attempts: number;
-  lane_evidence: LaneEvidence;
   model_listed: boolean;
   provider_catalog_verified: boolean;
   metadata_host_verified: boolean;
@@ -121,35 +104,10 @@ function keylessEnv(extra: Record<string, string> = {}) {
 }
 
 function completeArtifactFixture(): CheckedArtifact {
-  const evidenceByLane: Record<string, LaneEvidence> = {
-    quick: laneEvidence({
-      quick_grounding: true,
-      quick_grounding_grade_passed: true,
-    }) as LaneEvidence,
-    deep: laneEvidence({
-      deep_nonce_match: true,
-    }) as LaneEvidence,
-    structured: laneEvidence({
-      structured_schema_valid: true,
-      structured_nonce_match: true,
-      structured_read_route_declared: true,
-    }) as LaneEvidence,
-    founder: laneEvidence({
-      founder_verdict_schema_valid: true,
-      founder_nonce_grounded: true,
-      founder_read_route_declared: true,
-    }) as LaneEvidence,
-    "code-review": laneEvidence({
-      code_review_schema_valid: true,
-      code_review_collect_diff_completed: true,
-      code_review_planted_defect_detected: true,
-    }) as LaneEvidence,
-  };
   const rows = notTestedRows(PROVIDERS).map((row: MeasurementRow) => ({
     ...row,
     status: "PASS",
     attempts: 2,
-    lane_evidence: evidenceByLane[row.lane]!,
     key_present: true,
     model_listed: true,
     provider_catalog_verified: true,
@@ -323,7 +281,7 @@ describe("provider compatibility harness — no paid calls", () => {
     );
     expect(missing.status).toBe(1);
     const artifact = JSON.parse(missing.stdout);
-    expect(artifact.schema_version).toBe("navi.provider-compat.v6");
+    expect(artifact.schema_version).toBe("navi.provider-compat.v7");
     expect(artifact.attempts_required).toBe(2);
     expect(artifact.provider_order).toEqual(["xai"]);
     expect(artifact.results).toHaveLength(5);
@@ -477,14 +435,12 @@ describe("provider compatibility harness — no paid calls", () => {
         "metadata_host",
         "status",
         "attempts",
-        "lane_evidence",
         "model_listed",
         "provider_catalog_verified",
         "metadata_host_verified",
         "timing",
       ].sort(),
     );
-    expect(rows[0]!.lane_evidence).toEqual(laneEvidence());
   });
 
   it("refuses a model override that would put a provider on another gateway", () => {
@@ -797,20 +753,14 @@ describe("provider compatibility harness — no paid calls", () => {
   });
 
   it("requires every requested attempt to pass and keeps each duration auditable", () => {
-    const evidence = laneEvidence({
-      structured_schema_valid: true,
-      structured_nonce_match: true,
-      structured_read_route_declared: true,
-    });
     const summary = summarizeAttempts([
-      { ok: true, evidence, blockReason: null, durationMs: 101 },
-      { ok: false, evidence, blockReason: null, durationMs: 202 },
+      { ok: true, blockReason: null, durationMs: 101 },
+      { ok: false, blockReason: null, durationMs: 202 },
     ]);
     expect(summary).toEqual({
       passed: false,
       status: "FAIL",
       reason: null,
-      evidence,
       attemptMs: [101, 202],
     });
   });
@@ -824,13 +774,11 @@ describe("provider compatibility harness — no paid calls", () => {
       summarizeAttempts([
         {
           ok: false,
-          evidence: laneEvidence(),
           blockReason: "account_quota",
           durationMs: 10,
         },
         {
           ok: false,
-          evidence: laneEvidence(),
           blockReason: "account_quota",
           durationMs: 20,
         },
@@ -845,13 +793,11 @@ describe("provider compatibility harness — no paid calls", () => {
         [
           {
             ok: false,
-            evidence: laneEvidence(),
             blockReason: "authentication",
             durationMs: 10,
           },
           {
             ok: false,
-            evidence: laneEvidence(),
             blockReason: "authentication",
             durationMs: 20,
           },
@@ -876,7 +822,7 @@ describe("provider compatibility harness — no paid calls", () => {
     );
 
     expect(artifactValidationErrors(artifact, raw)).toEqual([]);
-    expect(artifact.schema_version).toBe("navi.provider-compat.v6");
+    expect(artifact.schema_version).toBe("navi.provider-compat.v7");
     expect(Number.isNaN(Date.parse(artifact.tested_at))).toBe(false);
     expect(artifact.attempts_required).toBe(2);
     expect(artifact.lanes).toEqual([
@@ -898,7 +844,6 @@ describe("provider compatibility harness — no paid calls", () => {
       expect(row).not.toHaveProperty("key_present");
       expect(row).not.toHaveProperty("reason");
       expect(["PASS", "FAIL", "BLOCKED", "NOT_TESTED"]).toContain(row.status);
-      expect(Object.keys(row.lane_evidence)).toEqual(Object.keys(laneEvidence()));
     }
 
     expect(artifact.evidence.versions.node).toMatch(/^v\d+\./);
@@ -980,13 +925,12 @@ describe("provider compatibility harness — no paid calls", () => {
     ).toContain("artifact contains compatibility failures");
   });
 
-  it("requires well-formed BLOCKED evidence and accepts a measured upstream block", () => {
+  it("accepts a measured upstream block and rejects incomplete blocked rows", () => {
     const clean = completeArtifactFixture();
     const current = { digests: structuredClone(clean.evidence.digests) };
     const openaiBlocked = structuredClone(clean);
     for (const row of openaiBlocked.results.filter((entry) => entry.provider === "openai")) {
       row.status = "BLOCKED";
-      row.lane_evidence = laneEvidence() as LaneEvidence;
     }
     expect(artifactValidationErrors(openaiBlocked, JSON.stringify(openaiBlocked))).toEqual([]);
     expect(
@@ -1000,7 +944,6 @@ describe("provider compatibility harness — no paid calls", () => {
       row.model_listed = false;
       row.provider_catalog_verified = false;
       row.metadata_host_verified = false;
-      row.lane_evidence = laneEvidence() as LaneEvidence;
       row.timing = { started_at: null, duration_ms: 0, attempt_ms: [] };
     }
     const malformedErrors = artifactValidationErrors(malformed, JSON.stringify(malformed));
