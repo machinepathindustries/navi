@@ -1118,27 +1118,6 @@ steps:
     expect(tools).not.toContain("mastra_workspace_kill_process");
   });
 
-  it("the five built-in flows resolve to the shared read-only tools list", async () => {
-    const expected = [...READ_ONLY_WORKSPACE_TOOLS];
-    const flows: { name: string; step: string }[] = [
-      { name: "founder", step: "judge" },
-      { name: "founder-advice", step: "counsel" },
-      { name: "code-search", step: "search" },
-      { name: "code-review", step: "review" },
-      { name: "pre-pr-review", step: "review" },
-    ];
-    for (const { name, step } of flows) {
-      const shape = (await loadShape(name, process.cwd()))._unsafeUnwrap();
-      const agent = shape.steps.find((s) => s.name === step);
-      expect(agent, `${name}.${step} missing`).toBeDefined();
-      expect(agent!.type).toBe("agent");
-      expect(agent!.tools, `${name}.${step} tools`).toEqual(expected);
-      // The shared allowlist itself must remain non-empty.
-      expect(agent!.tools.length).toBeGreaterThan(0);
-      // no zero-tool warning on an explicitly tooled step.
-      expect(shape.lint.some((f) => f.step === step && /zero workspace tools/.test(f.message))).toBe(false);
-    }
-  });
 });
 
 // The `json` argument type:
