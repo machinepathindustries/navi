@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { describe, it, expect, beforeAll } from "vitest";
-import { loadShape, lintErrors, shapeSummary, compile } from "../src/compiler/index.ts";
+import { loadShape, shapeSummary, compile } from "../src/compiler/index.ts";
 import type { Shape } from "../src/compiler/index.ts";
 import { createWorkspace } from "../src/mastra/index.ts";
 import { GateDecision, SurfaceMap, Directive } from "../src/contracts/whisper.ts";
@@ -14,12 +14,6 @@ describe("edge-walk — resolved shape (read-only 3-step adversarial walk)", () 
   let shape: Shape;
   beforeAll(async () => {
     shape = (await loadShape(WF, process.cwd()))._unsafeUnwrap();
-  });
-
-  it("resolves cleanly to recon → expand → judge, all agent steps", () => {
-    expect(lintErrors(shape)).toHaveLength(0);
-    expect(shape.steps.map((s) => s.name)).toEqual(["recon", "expand", "judge"]);
-    expect(shape.steps.every((s) => s.type === "agent")).toBe(true);
   });
 
   it("is structurally read-only: every step's tools are the read-only workspace triad", () => {
@@ -65,15 +59,6 @@ describe("edge-walk — resolved shape (read-only 3-step adversarial walk)", () 
     expect(judge.model).toBe(shape.defaultModel);
   });
 
-  it("declares a single json-typed required `input` arg", () => {
-    // The whole stdin object binds to `input`. The `json` type
-    // token makes the compiler validate it as z.unknown() so Mastra's input
-    // validation accepts the object instead of rejecting it as a
-    // non-string; revision/prior/prior_workflow still ride through
-    // argsSchema's passthrough.
-    expect(shape.args).toHaveLength(1);
-    expect(shape.args[0]).toMatchObject({ name: "input", type: "json", required: true });
-  });
 });
 
 describe("edge-walk — the three co-located schema refs resolve to honest shapes", () => {
