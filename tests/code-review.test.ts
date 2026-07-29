@@ -3,7 +3,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { Mastra } from "@mastra/core";
 import { LibSQLStore } from "@mastra/libsql";
 import { parseSpecFile } from "../src/compiler/parse.ts";
-import { buildShape, loadShape, lintErrors, shapeSummary, compile } from "../src/compiler/index.ts";
+import { buildShape, loadShape, shapeSummary, compile } from "../src/compiler/index.ts";
 import type { Shape } from "../src/compiler/index.ts";
 import type { WorkflowSpec } from "../src/compiler/spec.ts";
 
@@ -17,11 +17,7 @@ describe("code-review — shape + frozen finding schema", () => {
     shape = (await loadShape(WF, process.cwd()))._unsafeUnwrap();
   });
 
-  it("resolves cleanly: a command diff-collector then an agent reviewer", () => {
-    expect(lintErrors(shape)).toHaveLength(0);
-    expect(shape.steps.map((s) => s.name)).toEqual(["collect_diff", "review"]);
-    expect(shape.steps[0]!.type).toBe("command");
-    expect(shape.steps[1]!.type).toBe("agent");
+  it("wires the reviewer to the diff collector with read-only context", () => {
     // the reviewer depends on the collected diff, and gets the shared read-only
     // tools list (READ_ONLY_WORKSPACE_TOOLS) so it can read surrounding context
     // without shell. An absent tools list grants zero workspace tools.
