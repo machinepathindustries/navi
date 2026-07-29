@@ -102,17 +102,20 @@ final step deterministic:
 4. A parse error exits nonzero; it never guesses a gate.
 
 The command step uses `$NAVI_ACTION_DIR` so the parser resolves from the active
-flow directory:
+flow directory. Model text belongs in `stdin`, where Navi sends it to the parser
+without interpolating it into the shell command:
 
 ```yaml
 - name: parse
   type: command
   depends: judge
-  command: |
-    node "$NAVI_ACTION_DIR/parse-gate.mjs" <<'__NAVI_GATE__'
-    {{ steps.judge.text }}
-    __NAVI_GATE__
+  command: node "$NAVI_ACTION_DIR/parse-gate.mjs"
+  stdin: "{{ steps.judge.text }}"
 ```
+
+Do not build a heredoc around model or user text. The text can contain any
+delimiter or shell syntax; `stdin` preserves it as data instead of asking the
+shell to parse it.
 
 ## Keep Founder verdicts separate
 

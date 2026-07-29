@@ -31,7 +31,9 @@ Otherwise, run source commands with `npm run navi -- <args>`.
   branch invariant in `src/`.
 - Return `neverthrow` results across fallible project boundaries. Wrap
   third-party exceptions where they enter Navi.
-- Use Mastra primitives before adding parallel framework machinery.
+- Use Mastra primitives before adding parallel framework machinery. Native and
+  local layers must still satisfy
+  [Machinery must pay rent](./builtin/skills/founder/references/rubrics.md#7-machinery-must-pay-rent).
 - Keep model-facing workspace tools read-only and fenced to the selected
   workspace.
 - Cover behavior at the real integration boundary: the CLI, compiler, storage,

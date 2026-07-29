@@ -2,6 +2,7 @@ import { mkdtempSync, mkdirSync, copyFileSync, rmSync, realpathSync, symlinkSync
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import { describe, it, expect } from "vitest";
 import { parseVerdict } from "../builtin/workflows/founder/parse-verdict.mjs";
 import VerdictSchema from "../builtin/workflows/founder/verdict.schema.ts";
@@ -199,4 +200,17 @@ describe("parser entrypoint guard survives a symlinked invocation path", () => {
       rmSync(dir, { recursive: true, force: true });
     });
   }
+
+  it("both parsers remain inert when imported by a stdin-launched module", () => {
+    for (const [, rel] of PARSERS) {
+      const href = pathToFileURL(join(process.cwd(), rel)).href;
+      const r = spawnSync(process.execPath, ["--input-type=module", "-"], {
+        input: `await import(${JSON.stringify(href)});\n`,
+        encoding: "utf8",
+      });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toBe("");
+      expect(r.stderr).toBe("");
+    }
+  });
 });

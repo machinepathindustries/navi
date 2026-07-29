@@ -46,7 +46,7 @@ function isDeniedEnvName(segment: string): boolean {
 
 // rg --glob exclusions: directory segments only (navi.db is a file stem, not a
 // tree). Keep this list derived from the same owner — never hand-typed at call sites.
-export const DENIED_RG_SEGMENTS = ["node_modules", "external", ".git", "navi.db"] as const;
+const DENIED_RG_SEGMENTS = ["node_modules", "external", ".git", "navi.db"] as const;
 
 function isDeniedSegment(segment: string): boolean {
   const seg = segment.toLowerCase();
@@ -98,8 +98,8 @@ function stripTrailingSep(p: string): string {
 // match(): an existing ancestor was found, or the walk reached the filesystem root
 // with nothing existing. Not recursion — JS has no TCO and a deep path would blow
 // the stack on a security boundary.
-// Exported for src/db-home.ts: the reserved-home refusal needs the same symlink-safe
-// canonicalization for a navi.db that does not exist yet (ONE owner, never a copy).
+// Exported for src/install.ts: install and uninstall need the same symlink-safe
+// canonicalization for paths that do not exist yet (ONE owner, never a copy).
 export function resolveExisting(p: string): string {
   let dir = p;
   let exists = existsSync(dir);
@@ -306,15 +306,12 @@ function refuseWhen<E>(refused: boolean, e: E): Result<void, E> {
     .exhaustive();
 }
 
-// Human-facing refusal text and stderr log, matching the Workspace hook.
-export function refuseDenied(target: string): string {
-  console.error(`navi: blocked tool call targeting ${target}`);
-  return `Blocked: refusing to access "${target}" (vendored/internal path).`;
-}
-
 export function formatResolveErr(e: ResolvePathErr): string {
   return match(e)
-    .with({ kind: "denied" }, ({ target }) => refuseDenied(target))
+    .with({ kind: "denied" }, ({ target }) => {
+      console.error(`navi: blocked tool call targeting ${target}`);
+      return `Blocked: refusing to access "${target}" (vendored/internal path).`;
+    })
     .with({ kind: "escape" }, ({ target }) => {
       console.error(`navi: blocked tool call targeting ${target}`);
       return `Blocked: refusing to access "${target}" (path escapes workspace).`;

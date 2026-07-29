@@ -184,16 +184,14 @@ steps:
 
       Confidence and Grounding are WORDS only — never numbers, never prose.
 
-  # Deterministic parse (same pattern as founder/action.yaml). The emission text
-  # is fed on stdin through a single-quoted heredoc with a collision-resistant
-  # delimiter, so the markdown's own `#`/backticks/`$`/quotes are inert data,
-  # never shell. The parser's stdout is this step's — and therefore the run's —
+  # Deterministic parse (same pattern as founder/action.yaml). Navi feeds the
+  # emission through the command step's stdin channel, never the shell command.
+  # The parser's stdout is this step's — and therefore the run's —
   # final output: a GateDecision (+ directives/handoff siblings) that activates
   # the shape-keyed whisper gate path.
   - name: gate
     type: command
     depends: ask
-    command: |
-      node "$NAVI_ACTION_DIR/parse-sharpen.mjs" <<'__NAVI_SHARPEN_MD_7c2e9b4a__'
+    command: node "$NAVI_ACTION_DIR/parse-sharpen.mjs"
+    stdin: |
       {{ steps.ask.text }}
-      __NAVI_SHARPEN_MD_7c2e9b4a__

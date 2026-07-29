@@ -1,11 +1,11 @@
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // Deterministic parse of the founder emission step's five-header markdown into
 // the verdict object (see verdict.schema.ts). This is the founder workflow's
 // FINAL step: a `type: command` step that runs `node parse-verdict.mjs` with the
-// emission text fed on stdin via a single-quoted heredoc — the robust way to
-// hand arbitrary text to a program without the shell touching it.
+// emission text written directly to child stdin by Navi's command-step runtime,
+// so arbitrary model text never enters the shell command string.
 //
 // A parse failure is an HONEST failure, never a guessed verdict: main() writes a
 // diagnostic to stderr and exits 1, so the command step fails → the workflow
@@ -123,5 +123,5 @@ async function main() {
 // workspace symlinks while keeping imports inert.
 const entryArg = process.argv[1];
 const invokedDirectly =
-  Boolean(entryArg) && realpathSync(entryArg) === fileURLToPath(import.meta.url);
+  Boolean(entryArg) && existsSync(entryArg) && realpathSync(entryArg) === fileURLToPath(import.meta.url);
 if (invokedDirectly) await main();

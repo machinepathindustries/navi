@@ -44,18 +44,9 @@ export function isDeepseek(model: string): boolean {
   return model.startsWith("deepseek/");
 }
 
-export function managedDefaults(model: string): ModelSettings {
+function managedDefaults(model: string): ModelSettings {
   return match(MANAGED_DEFAULT_MODELS.has(model))
     .with(true, (): ModelSettings => ({ temperature: 0, thinking: "enabled" }))
-    .with(false, (): ModelSettings => ({}))
-    .exhaustive();
-}
-
-// Optional bare-search override for managed flash/pro models. It is exported for
-// explicit callers but is not part of the default settings path.
-export function bareSearchThinkingOverride(model: string): ModelSettings {
-  return match(MANAGED_DEFAULT_MODELS.has(model))
-    .with(true, (): ModelSettings => ({ thinking: "disabled" }))
     .with(false, (): ModelSettings => ({}))
     .exhaustive();
 }
@@ -77,14 +68,6 @@ const definedOnly = <T extends object>(o: T): { [K in keyof T]?: Exclude<T[K], u
 // plain spread cannot express that (an explicit `undefined` deletes the key).
 export function resolveSettings(model: string, overrides: ModelSettings = {}): ModelSettings {
   return { ...managedDefaults(model), ...definedOnly(overrides) };
-}
-
-// Bare-search uses the managed baseline plus explicit CLI overrides.
-export function resolveBareSearchSettings(
-  model: string,
-  overrides: ModelSettings = {},
-): ModelSettings {
-  return resolveSettings(model, overrides);
 }
 
 // The Mastra-facing fragment: what gets spread into `Agent({defaultOptions})` or

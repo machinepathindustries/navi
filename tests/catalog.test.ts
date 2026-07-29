@@ -171,7 +171,7 @@ describe("renderCatalog — human listing", () => {
     expect(text).toMatch(/pinned\s+gamma/);
     expect(text).toMatch(/collision/);
     expect(text).toMatch(/shadowed by project/);
-    expect(text).not.toMatch(/parent-harness|bareSearchThinkingOverride/);
+    expect(text).not.toMatch(/parent-harness/);
   });
 
   it("renders an empty group as (0): none rather than crashing", () => {

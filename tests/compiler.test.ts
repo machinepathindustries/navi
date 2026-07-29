@@ -1,7 +1,6 @@
 import { existsSync, mkdtempSync, mkdirSync, realpathSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { spawnSync } from "node:child_process";
 import { describe, it, expect, beforeAll } from "vitest";
 import { Mastra } from "@mastra/core";
 import { createWorkspaceTools } from "@mastra/core/workspace";
@@ -153,6 +152,18 @@ steps:
 `);
     expect(lintErrors(shape).some((e) => /command step cannot set model/.test(e.message))).toBe(true);
   });
+
+  it("forbids command-only stdin on an agent step", async () => {
+    const shape = await shapeFrom(`
+name: bad
+steps:
+  - name: s
+    type: agent
+    prompt: hi
+    stdin: unsafe
+`);
+    expect(lintErrors(shape).some((e) => /agent step cannot set stdin/.test(e.message))).toBe(true);
+  });
 });
 
 describe("compiler — a co-located .ts Zod schema reference", () => {
@@ -272,6 +283,59 @@ steps:
     const out = result.steps.shout!.output!;
     expect(out.stdout.trim()).toBe("hello-navi");
     expect(out.exitCode).toBe(0);
+  });
+
+  it("passes interpolated stdin as exact bytes without putting model/user text in the shell", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "navi-command-stdin-"));
+    const sideEffect = join(dir, "shell-injection-ran");
+    const payload = [
+      "before delimiter",
+      "__NAVI_STDIN__",
+      `touch ${sideEffect}`,
+      "$(printf shell-substitution)",
+      "`printf command-substitution`",
+      "__NAVI_STDIN__",
+      "after delimiter",
+    ].join("\n");
+    try {
+      const shape = await shapeFrom(`
+name: safe-stdin
+args:
+  payload:
+    required: true
+steps:
+  - name: roundtrip
+    type: command
+    command: node -e 'process.stdin.pipe(process.stdout)'
+    stdin: "{{ input.payload }}"
+`);
+      expect(shape.steps[0]).toMatchObject({ type: "command", stdin: "{{ input.payload }}" });
+      const result = await runCmd(shape, { payload });
+      expect(result.status).toBe("success");
+      expect(result.steps.roundtrip!.output!.stdout).toBe(payload);
+      expect(existsSync(sideEffect)).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a successful early-closing command successful when stdin reaches EPIPE", async () => {
+    const result = await runCmd(
+      await shapeFrom(`
+name: early-close
+args:
+  payload:
+    required: true
+steps:
+  - name: skip
+    type: command
+    command: node -e 'process.exit(0)'
+    stdin: "{{ input.payload }}"
+`),
+      { payload: "x".repeat(128 * 1024) },
+    );
+    expect(result.status).toBe("success");
+    expect(result.steps.skip!.output!.exitCode).toBe(0);
   });
 
   it("a nonzero exit code fails the workflow — no silent success", async () => {
@@ -414,9 +478,10 @@ steps:
     );
   });
 
-  it("founder + sharpen parse scripts produce identical output via $NAVI_ACTION_DIR", () => {
-    // Match the action.yaml invocation exactly: node "$NAVI_ACTION_DIR/…" with a
-    // single-quoted heredoc. The result must equal the parser module's direct output.
+  it("founder + sharpen parsers receive model text through compiled command stdin", async () => {
+    // Exercise the production boundary: compile a command step, resolve its
+    // sibling through NAVI_ACTION_DIR, and transport the text on stdin. The
+    // workflow result must equal the parser module's direct output.
     const founderMd = `## Verdict
 GO
 
@@ -459,27 +524,30 @@ high
 ## Grounding
 semantic-only
 `;
-    // Shell form the action.yaml actually uses — cwd is foreign so a relative
-    // path would MODULE_NOT_FOUND without NAVI_ACTION_DIR.
-    const runParser = (actionDir: string, script: string, md: string) => {
-      const shell = spawnSync(
-        "/bin/sh",
-        ["-c", `node "$NAVI_ACTION_DIR/${script}" <<'__NAVI_TEST_MD__'\n${md}\n__NAVI_TEST_MD__`],
-        {
-          cwd: tmpdir(),
-          env: { ...process.env, NAVI_ACTION_DIR: actionDir },
-          encoding: "utf8",
-        },
+    const runParser = async (name: string, actionDir: string, script: string, md: string) => {
+      const shape = await buildShape(
+        parseSpecText(`
+name: ${name}
+args:
+  payload:
+    required: true
+steps:
+  - name: parse
+    type: command
+    command: node "$NAVI_ACTION_DIR/${script}"
+    stdin: "{{ input.payload }}"
+`)._unsafeUnwrap(),
+        actionDir,
       );
-      expect(shell.status).toBe(0);
-      expect(shell.stderr).toBe("");
-      return shell.stdout;
+      const result = await runCmd(shape, { payload: md });
+      expect(result.status).toBe("success");
+      return result.steps.parse!.output!.stdout;
     };
 
     const founderDir = join(process.cwd(), "builtin/workflows/founder");
     const sharpenDir = join(process.cwd(), "builtin/workflows/sharpen");
-    const founderOut = runParser(founderDir, "parse-verdict.mjs", founderMd);
-    const sharpenOut = runParser(sharpenDir, "parse-sharpen.mjs", sharpenMd);
+    const founderOut = await runParser("founder-parser-stdin", founderDir, "parse-verdict.mjs", founderMd);
+    const sharpenOut = await runParser("sharpen-parser-stdin", sharpenDir, "parse-sharpen.mjs", sharpenMd);
     const founderDirect = parseVerdict(founderMd);
     const sharpenDirect = parseSharpen(sharpenMd);
     expect(founderDirect.ok).toBe(true);

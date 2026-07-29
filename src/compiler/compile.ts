@@ -260,14 +260,18 @@ async function buildStep(
           inputSchema: z.unknown(),
           outputSchema: rs.output,
           execute: async (p) => {
-            const command = interpolate(rs.command, buildCtx(priorNames, p));
+            const ctx = buildCtx(priorNames, p);
+            const command = interpolate(rs.command, ctx);
+            const stdin = match(rs.stdin)
+              .with(undefined, () => undefined)
+              .otherwise((template) => interpolate(template, ctx));
             // actionDir is the absolute action.yaml dir carried on the resolved
             // step (shape.ts ResolvedStepBase) — inject as NAVI_ACTION_DIR so the
             // shell can resolve sibling scripts without a DSL template binding
             // without setting cwd. Changing cwd would break
             // code-review/pre-pr-review/web-search, which run `git diff`/curl
             // against the USER's workspace cwd.
-            return runCommand(command, rs.actionDir).match(
+            return runCommand(command, rs.actionDir, stdin).match(
               (out) => out,
               (message) => {
                 throw new Error(message);
@@ -466,7 +470,7 @@ export function structuredOutputOptions(
 // NAVI_ACTION_DIR env var instead: shell-native `$NAVI_ACTION_DIR/…`, zero DSL
 // work for built-in and consumer tiers alike. Do not set cwd or special-case
 // individual workflows. actionDir is absolute (shape.ts resolveStep).
-function runCommand(command: string, actionDir: string): ResultAsync<unknown, string> {
+function runCommand(command: string, actionDir: string, stdin?: string): ResultAsync<unknown, string> {
   return ResultAsync.fromPromise(
     new Promise<unknown>((resolve, reject) => {
       const child = spawn(command, {
@@ -475,9 +479,23 @@ function runCommand(command: string, actionDir: string): ResultAsync<unknown, st
       });
       let stdout = "";
       let stderr = "";
+      let stdinError: unknown;
       child.stdout.on("data", (d) => (stdout += d));
       child.stderr.on("data", (d) => (stderr += d));
       child.on("error", reject);
+      match(stdin)
+        .with(undefined, () => undefined)
+        .otherwise((input) => {
+          // A command may intentionally exit 0 without consuming its input
+          // (web-search does this when no provider key is configured). Record
+          // write errors until `close`, when the child's exit status is known.
+          // EPIPE plus exit 0 is an ordinary early close; every other stdin
+          // error still fails the step.
+          child.stdin.on("error", (error) => {
+            stdinError = error;
+          });
+          child.stdin.end(input);
+        });
       // A nonzero exit or signal termination fails the step. Node reports a
       // signal-terminated child with code === null. exitCode is emitted only for
       // a clean exit.
@@ -487,10 +505,22 @@ function runCommand(command: string, actionDir: string): ResultAsync<unknown, st
           .with("", () => "")
           .otherwise((s) => `: ${s}`);
       child.on("close", (code, signal) =>
-        match(code)
-          .with(null, () => reject(new Error(`killed by signal ${signal ?? "unknown"}${tail()}`)))
-          .with(0, (exitCode) => resolve({ stdout, stderr, exitCode }))
-          .otherwise((c) => reject(new Error(`exited ${c}${tail()}`))),
+        match({ code, stdinError })
+          .with({ code: null }, () =>
+            reject(new Error(`killed by signal ${signal ?? "unknown"}${tail()}`)),
+          )
+          .with({ code: 0, stdinError: undefined }, ({ code: exitCode }) =>
+            resolve({ stdout, stderr, exitCode }),
+          )
+          .with({ code: 0, stdinError: { code: "EPIPE" } }, ({ code: exitCode }) =>
+            resolve({ stdout, stderr, exitCode }),
+          )
+          .with({ code: 0 }, ({ stdinError: error }) =>
+            reject(new Error(`stdin failed: ${errStr(error)}${tail()}`)),
+          )
+          .otherwise(({ code: exitCode }) =>
+            reject(new Error(`exited ${exitCode}${tail()}`)),
+          ),
       );
     }),
     (e) => `command failed: ${errStr(e)}`,

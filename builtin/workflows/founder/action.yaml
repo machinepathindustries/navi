@@ -84,16 +84,13 @@ steps:
       bullets — for REFINE or REJECT they name the concrete fix or the concrete
       failure, not a generic caution.
 
-  # The deterministic parser receives the emission text on stdin
-  # through a single-quoted heredoc with a collision-resistant delimiter, so the
-  # markdown's own `#`/backticks/`$`/quotes are inert data, never shell (the
-  # robust way to hand arbitrary text to a program on macOS /bin/sh). The
+  # The deterministic parser receives the emission through the command step's
+  # stdin channel, so model text never enters the shell command string. The
   # parser's stdout is this step's — and therefore the run's — final
   # output, so the verdict JSON rides in envelope.result.stdout.
   - name: parse
     type: command
     depends: judge
-    command: |
-      node "$NAVI_ACTION_DIR/parse-verdict.mjs" <<'__NAVI_FOUNDER_MD_9f3a1c7e__'
+    command: node "$NAVI_ACTION_DIR/parse-verdict.mjs"
+    stdin: |
       {{ steps.judge.text }}
-      __NAVI_FOUNDER_MD_9f3a1c7e__

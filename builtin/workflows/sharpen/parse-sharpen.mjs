@@ -1,11 +1,11 @@
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // Deterministic parse of the sharpen emission step's eight-header markdown into
 // a GateDecision (+ directives/handoff siblings). This is the sharpen workflow's
 // FINAL step: a `type: command` step that runs `node parse-sharpen.mjs` with the
-// emission text fed on stdin via a single-quoted heredoc — the robust way to
-// hand arbitrary text to a program without the shell touching it.
+// emission text written directly to child stdin by Navi's command-step runtime,
+// so arbitrary model text never enters the shell command string.
 //
 // The MODEL emits seven simple judgment headers (plus Confidence/Grounding as
 // fixed words); the PARSER owns ALL GateDecision mechanics — gate enum, directive
@@ -291,5 +291,5 @@ async function main() {
 // workspace symlinks while keeping imports inert.
 const entryArg = process.argv[1];
 const invokedDirectly =
-  Boolean(entryArg) && realpathSync(entryArg) === fileURLToPath(import.meta.url);
+  Boolean(entryArg) && existsSync(entryArg) && realpathSync(entryArg) === fileURLToPath(import.meta.url);
 if (invokedDirectly) await main();

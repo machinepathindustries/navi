@@ -63,6 +63,7 @@ export const StepSpec = z
     type: z.enum(["agent", "command"]),
     prompt: z.string().optional(),
     command: z.string().optional(),
+    stdin: z.string().optional(),
     tools: z.array(z.string()).optional(),
     skills: z.object({ only: z.array(z.string()).optional() }).strict().optional(),
     model: z.string().optional(),

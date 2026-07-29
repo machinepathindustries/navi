@@ -136,12 +136,12 @@ the moment it works instead of the moment it stops getting better.
 
 ## 7. Machinery must pay rent
 
-**Principle.** Every remaining layer must have a current consumer, unique
-behavior, or a real failure boundary. Prefer deleting, inlining, or collapsing
-machinery when the same required behavior survives in a smaller truthful
-shape. In an AI system, deterministic code should enforce product-owned
-contracts; tests must not pretend model-owned judgment, wording, tool choice,
-or call order is exact.
+**Principle.** Every remaining layer must have a current consumer and either
+unique behavior or a real failure boundary. Prefer deleting, inlining, or
+collapsing machinery when the same required behavior survives in a smaller
+truthful shape. In an AI system, deterministic code should enforce
+product-owned contracts; tests must not pretend model-owned judgment, wording,
+tool choice, or call order is exact.
 
 **Check.** For each wrapper, allowlist, registry, adapter, retry, state machine,
 config surface, prompt rule, parser, deployment check, and test: what current
@@ -149,7 +149,20 @@ invariant does it protect, where is that invariant owned, and what would
 actually fail if this piece disappeared? Does the change retire the superseded
 path, or add another owner beside it? Does each exact test cover a code-owned
 boundary, while stochastic model behavior stays in an eval with semantic
-acceptance criteria?
+acceptance criteria? Where a capability is restricted, is the restriction a
+product or security boundary, or does it only steer the model away from a
+supported native path toward a preferred trace? A mechanism cannot justify
+itself by declaring its own route, format, or tolerance to be the contract;
+identify an owner outside the mechanism. For model-facing orchestration, try
+clear instructions and tool descriptions, existing conversation and tool
+context, and native framework composition before adding a router, state
+machine, or parser. Treat a restriction repeatedly loosened or removed by
+maintainers to restore supported behavior as evidence that its invariant was
+misidentified; restoring it requires new class-level evidence. When model calls
+are malformed, simplify the model-facing schema before adding retries or trace
+detectors. For a wrapper that claims to contain untrusted data, trace the value
+through the actual executor; a comment, quoted example, or clean fixture is not
+proof of the boundary.
 
 **Violation.** Forwarding-only layers, one-consumer abstractions with no
 boundary, duplicate sources of truth, compatibility machinery for an
@@ -158,4 +171,7 @@ thresholds, retries, and fixtures shaped around one model transcript instead
 of a general invariant. Live-model tests that demand exact wording, tool,
 arguments, call count, or order; mocks or a few clean probes reported as proof
 that model behavior is deterministic. A regression test that still passes
-when the behavior it claims to protect is removed.
+when the behavior it claims to protect is removed. Disabling a supported native
+capability solely to force a preferred tool, route, or sequence. Rebuilding a
+restriction that maintainers repeatedly relaxed or removed to restore supported
+behavior without a new requirement and class-level evidence.

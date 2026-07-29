@@ -100,16 +100,22 @@ The file sits beside `action.yaml` and default-exports a Zod object schema.
 
 ## Command step fields
 
-A command step accepts `command` plus the shared fields. It cannot declare
-agent-only fields such as `prompt`, `tools`, `skills`, `model`, or `output`.
+| Field | Contract |
+|---|---|
+| `command` | Required trusted shell command |
+| `stdin` | Optional string template written directly to the command's standard input |
+
+A command step cannot declare agent-only fields such as `prompt`, `tools`,
+`skills`, `model`, or `output`.
 
 Command steps inherit the workspace as their current directory. Resolve a
 co-located parser through `$NAVI_ACTION_DIR`.
 
 <Warning>
-  A command step is trusted shell code. Do not interpolate untrusted input into
-  a shell-parsed position. Pass input to a program that validates it, then
-  invoke subprocesses with an argument array.
+  A command step is trusted shell code. Keep `command` static: never interpolate
+  model or user text into it. Put that text in `stdin`; Navi writes it to the
+  spawned command without placing it in the shell command string. The receiving
+  program must still validate the input before using it.
 </Warning>
 
 ## Template values
@@ -124,6 +130,17 @@ Templates read input and completed output:
 Objects and arrays become JSON. A missing path becomes an empty string.
 `--shape` validates YAML fields and wiring; it cannot prove that a runtime
 template path will exist.
+
+For command steps, templates in `stdin` use the same values but travel over the
+child process's standard input:
+
+```yaml
+- name: parse
+  type: command
+  depends: judge
+  command: node "$NAVI_ACTION_DIR/parse-gate.mjs"
+  stdin: "{{ steps.judge.text }}"
+```
 
 ## Compiler limits
 

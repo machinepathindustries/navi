@@ -15,10 +15,9 @@ steps:
   # is only ever a shell variable *name* — never {{ }}-interpolated, never printed
   # by --shape (which shows just a char count), and curl runs silent (-s) with no
   # -v/--trace/--dump-header, so the Authorization header can never reach the
-  # captured stdout/stderr. Query safety: the query flows through a single-quoted
-  # heredoc straight into node's stdin (NOT via $()-nested substitution, which
-  # macOS /bin/sh mis-parses on an odd quote), so an embedded quote/$/backtick is
-  # data, never shell; node's JSON.stringify does the JSON escaping (node is
+  # captured stdout/stderr. Query safety: Navi writes the query directly to the
+  # child through the command step's `stdin:` channel, never into the shell
+  # command; node's JSON.stringify does the JSON escaping (node is
   # guaranteed present — navi is a node CLI; jq is not) and pipes the body to
   # `curl -d @-`. The Tavily response is this step's stdout.
   - name: search_tavily
@@ -28,9 +27,9 @@ steps:
         printf '{"skipped":"no_TAVILY_API_KEY"}'
         exit 0
       fi
-      node -e 'let q="";process.stdin.on("data",d=>q+=d).on("end",()=>process.stdout.write(JSON.stringify({query:q.replace(/\n$/,""),search_depth:"basic",max_results:5,include_answer:true})))' <<'__NAVI_QUERY_EOF__' | curl -s -X POST https://api.tavily.com/search -H "Authorization: Bearer $TAVILY_API_KEY" -H "Content-Type: application/json" -d @-
+      node -e 'let q="";process.stdin.on("data",d=>q+=d).on("end",()=>process.stdout.write(JSON.stringify({query:q.replace(/\n$/,""),search_depth:"basic",max_results:5,include_answer:true})))' | curl -s -X POST https://api.tavily.com/search -H "Authorization: Bearer $TAVILY_API_KEY" -H "Content-Type: application/json" -d @-
+    stdin: |
       {{ input.query }}
-      __NAVI_QUERY_EOF__
 
   # Synthesize from the command step's Tavily stdout only — no workspace tools
   # (absent tools: ⇒ ZERO). The web was already searched (or honestly skipped);

@@ -19,12 +19,10 @@ args:
 steps:
   # Collect the diff in a command step so dynamic input is handled
   # deterministically. The range is untrusted author input,
-  # so it is NEVER interpolated into a position the shell parses. `{{ input.range }}`
-  # flows through a single-quoted heredoc straight into node's stdin — an embedded
-  # `;`, `$(…)`, backtick, or quote is inert data, not shell (macOS /bin/sh
-  # mis-parses $()-nested substitution on odd quotes; the quoted heredoc + stdin
-  # pattern is the repo's proven safe channel, same as web-search). node then splits
-  # the range on whitespace and runs `git` via spawnSync as ARGV (no shell), so each
+  # so it is NEVER interpolated into a position the shell parses. Navi writes
+  # `{{ input.range }}` directly to the child process through the command step's
+  # `stdin:` channel; delimiters, `;`, `$(…)`, backticks, and quotes remain data.
+  # node then splits the range on whitespace and runs `git` via spawnSync as ARGV, so each
   # token reaches git as a literal revision — it can never become a second command.
   # An option-injection guard rejects any token starting with "-" (a legit git rev
   # never does; this blocks arg-smuggled flags like --output=… that would write a
@@ -33,10 +31,10 @@ steps:
   # CLI); require() resolves because `node -e` defaults to CommonJS.
   - name: collect_diff
     type: command
-    command: |
-      node -e 'const cp=require("node:child_process");let r="";process.stdin.on("data",d=>r+=d).on("end",()=>{r=r.replace(/\n+$/,"").trim();const a=r?r.split(/\s+/):["HEAD"];if(a.some(x=>x.startsWith("-"))){process.stderr.write("navi code-review: refusing a diff ref that starts with \"-\" (looks like a git flag, not a revision): "+r+"\n");process.exit(2);}const g=cp.spawnSync("git",["--no-pager","diff",...a],{encoding:"utf8",maxBuffer:67108864});if(g.status!==0){process.stderr.write(g.stderr||("git diff failed for range: "+r+"\n"));process.exit(g.status||1);}process.stdout.write(g.stdout);})' <<'__NAVI_RANGE_EOF__'
+    command: >-
+      node -e 'const cp=require("node:child_process");let r="";process.stdin.on("data",d=>r+=d).on("end",()=>{r=r.replace(/\n+$/,"").trim();const a=r?r.split(/\s+/):["HEAD"];if(a.some(x=>x.startsWith("-"))){process.stderr.write("navi code-review: refusing a diff ref that starts with \"-\" (looks like a git flag, not a revision): "+r+"\n");process.exit(2);}const g=cp.spawnSync("git",["--no-pager","diff",...a],{encoding:"utf8",maxBuffer:67108864});if(g.status!==0){process.stderr.write(g.stderr||("git diff failed for range: "+r+"\n"));process.exit(g.status||1);}process.stdout.write(g.stdout);})'
+    stdin: |
       {{ input.range }}
-      __NAVI_RANGE_EOF__
 
   # The review lens lives here in the prompt (no new skill — PLAN lists workflows
   # only). Explicit read-only `tools:` (READ_ONLY_WORKSPACE_TOOLS — absent tools:

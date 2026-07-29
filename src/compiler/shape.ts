@@ -64,8 +64,8 @@ type ResolvedStepBase = {
 };
 
 export type ResolvedStep =
-  | (ResolvedStepBase & { type: "agent"; prompt: string; command?: never })
-  | (ResolvedStepBase & { type: "command"; command: string; prompt?: never });
+  | (ResolvedStepBase & { type: "agent"; prompt: string; command?: never; stdin?: never })
+  | (ResolvedStepBase & { type: "command"; command: string; stdin?: string | undefined; prompt?: never });
 
 export type Shape = {
   name: string;
@@ -241,7 +241,12 @@ async function resolveStep(
   // already refused a missing prompt/command as an error-level finding.
   return match(s.type)
     .with("agent", () => ({ ...base, type: "agent" as const, prompt: s.prompt ?? "" }))
-    .with("command", () => ({ ...base, type: "command" as const, command: s.command ?? "" }))
+    .with("command", () => ({
+      ...base,
+      type: "command" as const,
+      command: s.command ?? "",
+      stdin: s.stdin,
+    }))
     .exhaustive();
 }
 
@@ -263,6 +268,9 @@ function lintStep(
       match(s.command ?? "")
         .with("", () => 0)
         .otherwise(() => lint.push({ level: "error", step: s.name, message: "agent step cannot set command" }));
+      match(s.stdin)
+        .with(undefined, () => 0)
+        .otherwise(() => lint.push({ level: "error", step: s.name, message: "agent step cannot set stdin" }));
       // A `tools:` entry must be a REGISTERED workspace tool key. Mastra's per-call
       // `activeTools` filter is EXACT string match, so a typo'd name resolves to
       // ZERO tools and silently ships a toolless/under-tooled agent — the opposite

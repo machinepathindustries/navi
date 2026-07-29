@@ -95,6 +95,13 @@ describe("path-guard credential files", () => {
         "search_content",
       ),
     ).toBeUndefined();
+    expect(
+      findGuardViolation(
+        { pattern: "NAVI_TEST_CREDENTIAL", path: ".", includeHidden: true },
+        base,
+        "multi_search",
+      ),
+    ).toBeUndefined();
   });
 
   it("Mastra's native default grep skips .env and still finds visible files", async () => {
@@ -137,9 +144,19 @@ describe("path-guard", () => {
     expect(pathHasDeniedSegment("Node_Modules/typescript/package.json")).toBe(true);
     expect(pathHasDeniedSegment("node_modules/foo")).toBe(true);
     expect(pathHasDeniedSegment("External/vendor/package.json")).toBe(true);
+    expect(pathHasDeniedSegment(".Git/config")).toBe(true);
+    expect(pathHasDeniedSegment("navi.db")).toBe(true);
     expect(pathHasDeniedSegment("navi.db-wal")).toBe(true);
     expect(pathHasDeniedSegment("navi.db-shm")).toBe(true);
+    expect(pathHasDeniedSegment("navi.db-journal")).toBe(true);
     expect(pathHasDeniedSegment("navi.dbutil")).toBe(false);
+    expect(pathHasDeniedSegment("navi.database")).toBe(false);
+    expect(pathHasDeniedSegment("mynavi.db")).toBe(false);
+    expect(pathHasDeniedSegment(".ENV")).toBe(true);
+    expect(pathHasDeniedSegment(".ENV.EXAMPLE")).toBe(false);
+    expect(pathHasDeniedSegment(".env.example.local")).toBe(true);
+    expect(pathHasDeniedSegment(".environment")).toBe(false);
+    expect(pathHasDeniedSegment(".envrc")).toBe(false);
     expect(pathHasDeniedSegment("src/cli.ts")).toBe(false);
   });
 
@@ -151,6 +168,7 @@ describe("path-guard", () => {
     expect(findGuardViolation({ pattern: "repairCallRecord" }, ROOT)).toBeUndefined();
     expect(findGuardViolation({ pattern: "../../etc/passwd" }, ROOT)).toBeUndefined();
     expect(findGuardViolation({ query: "normalizeNumber" }, ROOT)).toBeUndefined();
+    expect(findGuardViolation("not an object", ROOT)).toBeUndefined();
   });
 
   it("guards every member of a paths array", () => {

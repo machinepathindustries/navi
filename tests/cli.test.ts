@@ -47,7 +47,7 @@ describe("navi CLI — no-model paths + exit map", () => {
     expect(r.stdout).toMatch(/--progress <mode>\s+Progress on stderr: off \| live \| jsonl/);
     expect(r.stdout).toMatch(/0 completed \(inspect --json gate\/verdict\)/);
     expect(r.stdout).not.toMatch(/0 ok/);
-    expect(r.stdout).not.toMatch(/skills \+ actions|parent-harness|bareSearchThinkingOverride/);
+    expect(r.stdout).not.toMatch(/skills \+ actions|parent-harness/);
   });
 
   it("--shape prints the resolved plan and exits 0 without a model call", () => {

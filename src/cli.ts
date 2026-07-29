@@ -60,7 +60,6 @@ import {
   isDeepseek,
   toMastraOptions,
   resolveSettings,
-  resolveBareSearchSettings,
   THINKING_MODES,
   REASONING_EFFORTS,
   type MastraModelOptions,
@@ -448,7 +447,7 @@ function resolveBareOverrides(flags: Flags, model: string): Result<BareOverrides
       .with(false, () =>
         ok<BareOverrides, string>({
           maxSteps,
-          options: toMastraOptions(model, resolveBareSearchSettings(model, { thinking, reasoningEffort })),
+          options: toMastraOptions(model, resolveSettings(model, { thinking, reasoningEffort })),
         }),
       )
       .exhaustive(),
