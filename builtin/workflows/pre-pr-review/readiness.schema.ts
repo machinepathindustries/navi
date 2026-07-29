@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ReviewFindingSchema } from "../code-review/findings.schema.ts";
 
 // pre-pr-review's output contract — the branch-level "is this ready for a PR"
 // verdict the calling agent acts on. The top-level export is a Zod OBJECT, so
@@ -37,27 +38,16 @@ import { z } from "zod";
 //
 //   findings   = the SAME finding shape as code-review
 //     (builtin/workflows/code-review/findings.schema.ts) — {file, line,
-//     severity∈low|medium|high, category, summary} — kept byte-identical on
-//     purpose: one finding vocabulary across both review workflows, so a caller
-//     or tool consumes code-review and pre-pr-review findings uniformly. severity
-//     is the only frozen per-finding discriminant; category stays a free string
-//     so the review lens can evolve without a schema break. An empty
-//     findings list plus an honest `summary`/`coverage` is legal (the no-changes
-//     and clean-branch paths); fabricating a finding to fill the list is
-//     forbidden.
+//     severity∈low|medium|high, category, summary}. Importing the canonical
+//     sub-schema makes that shared vocabulary structural rather than something
+//     a parity test has to police. An empty findings list plus an honest
+//     `summary`/`coverage` is legal (the no-changes and clean-branch paths);
+//     fabricating a finding to fill the list is forbidden.
 //
 // No logic lives here — a schema file is a shape declaration, nothing else.
 export default z.object({
   summary: z.string(),
   readiness: z.enum(["ready", "not_ready"]),
   coverage: z.string(),
-  findings: z.array(
-    z.object({
-      file: z.string(),
-      line: z.number(),
-      severity: z.enum(["low", "medium", "high"]),
-      category: z.string(),
-      summary: z.string(),
-    }),
-  ),
+  findings: z.array(ReviewFindingSchema),
 });

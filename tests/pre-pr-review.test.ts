@@ -97,26 +97,6 @@ describe("pre-pr-review — shape + frozen readiness schema", () => {
     expect(out.safeParse({ summary: "x", findings: [] }).success).toBe(false);
   });
 
-  it("shares one finding schema with code-review", async () => {
-    const crWF = join(process.cwd(), "builtin/workflows/code-review/action.yaml");
-    const cr = (await loadShape(crWF, process.cwd()))._unsafeUnwrap();
-    const finding = {
-      file: "src/x.ts",
-      line: 7,
-      severity: "medium" as const,
-      category: "simplification",
-      summary: "same finding shape across both review workflows",
-    };
-    // a finding valid for code-review is valid for pre-pr-review and vice versa,
-    // so a caller consumes both workflows' findings uniformly.
-    const crOut = cr.steps[1]!.output;
-    const ppOut = shape.steps[1]!.output;
-    expect(crOut.safeParse({ summary: "s", findings: [finding] }).success).toBe(true);
-    expect(
-      ppOut.safeParse({ summary: "s", readiness: "ready", coverage: "c", findings: [finding] }).success,
-    ).toBe(true);
-  });
-
   it("compiles to a committed workflow (schema drives the reviewer's structured output)", async () => {
     const c = await compile(shape, { thread: "ppr", resource: "cli" });
     expect(c.isOk()).toBe(true);

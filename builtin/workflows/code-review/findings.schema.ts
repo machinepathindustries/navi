@@ -30,16 +30,19 @@ import { z } from "zod";
 //     Fabricating a placeholder finding for an empty diff is forbidden; the
 //     honest signal is findings:[] plus this note.
 //
+// This is the canonical finding vocabulary for both review flows. Pre-PR adds
+// readiness and coverage around the same finding rather than maintaining a
+// second copy plus a drift test.
+export const ReviewFindingSchema = z.object({
+  file: z.string(),
+  line: z.number(),
+  severity: z.enum(["low", "medium", "high"]),
+  category: z.string(),
+  summary: z.string(),
+});
+
 // No logic lives here — a schema file is a shape declaration, nothing else.
 export default z.object({
   summary: z.string(),
-  findings: z.array(
-    z.object({
-      file: z.string(),
-      line: z.number(),
-      severity: z.enum(["low", "medium", "high"]),
-      category: z.string(),
-      summary: z.string(),
-    }),
-  ),
+  findings: z.array(ReviewFindingSchema),
 });
