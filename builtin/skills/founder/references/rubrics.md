@@ -14,7 +14,43 @@ Each rubric has the same shape:
 
 ---
 
-## 1. Force multiplier
+## 1. Keep intelligence in the model; machinery at the boundary
+
+**Principle.** Put each decision where its owner has the most information.
+The model owns interpretation, evidence relevance, semantic judgment, wording,
+tool choice, and call order unless the product explicitly contracts one of
+them. Deterministic code owns security, permissions, protocol and schema
+validation, persistence, pure computation, and explicit product state. The
+framework owns its native primitives. Prove the smallest useful outcome before
+building apparatus around it.
+
+**Check.** Map ownership before implementation. Start at the public behavior:
+what is the thinnest end-to-end proof that the concept works? For every
+wrapper, router, allowlist, retry, parser, prompt rule, config surface, and
+test, ask what current observable outcome fails if it is deleted. Prefer one
+integration check at the matching boundary, focused unit tests for deterministic
+branches that path cannot isolate, and semantic evals for model-owned behavior.
+A pure schema, authorization, or membership contract may make an exact focused
+test the nearest boundary. Treat arduous setup, repeated fixtures, and
+prompt/source token assertions as leads to inspect, not proof; an exact string
+is testable only when it is itself the external contract. Keep one canonical
+owner per invariant and multiple layers only for distinct boundaries. In AI
+orchestration, try instructions, tool descriptions, simpler schemas, existing
+context, and native composition — including model-directed subagent fan-out — before
+deterministic routing, retries, trace detectors, or parsers.
+
+**Violation.** Model intelligence is compiled downward into heuristics that
+force one preferred trace. Tests and guards arrive before a working outcome and
+become the thing being built. A large harness proves tokens, mocks, call counts,
+or one transcript while the public behavior remains untried. A source scan is
+reported as runtime evidence; adjacent-boundary evidence is used for the wrong
+outcome; a regression test still passes when its named production behavior is
+removed. Forwarding layers, duplicate owners, or incident-shaped regexes and
+thresholds remain without a current product or security contract.
+
+---
+
+## 2. Force multiplier
 
 **Principle.** You are a force multiplier. Recurring or heavy work belongs in
 machinery you build once and dispatch to — a skill, an action, a worker — not
@@ -39,7 +75,7 @@ was meant to replace intact.
 
 ---
 
-## 2. Model steering
+## 3. Model steering
 
 **Principle.** Pick the lane. Which model runs a step is an operating
 decision that shows up in quality and cost — decide it on purpose, and prove
@@ -56,7 +92,7 @@ Benchmarking on one model and shipping on another without saying so.
 
 ---
 
-## 3. Artifact truth first
+## 4. Artifact truth first
 
 **Principle.** Trust the file, the diff, the actual command output — not the
 summary of it. If the durable artifact answers the question, read the
@@ -79,7 +115,7 @@ matches the present.
 
 ---
 
-## 4. Precision scoping
+## 5. Precision scoping
 
 **Principle.** Do the named thing, then stop. When the lane narrows, collapse
 scope with it — the adjacent bigger problem is a trap, and narrowing is a
@@ -96,7 +132,7 @@ Solving the general problem when the specific one was the ask.
 
 ---
 
-## 5. Dependency grain
+## 6. Dependency grain
 
 **Principle.** Build with the grain of what you actually depend on — the real
 stack's native primitives and the local, composable seams that keep the
@@ -118,7 +154,7 @@ the seam.
 
 ---
 
-## 6. Review and reinforcement
+## 7. Review and reinforcement
 
 **Principle.** A thing is not done because it passed once. Put it under real
 pressure — challenge it, fork it, push until it stops improving — and treat
@@ -131,47 +167,3 @@ plateaued rather than stopping at first-pass green?
 **Violation.** Declaring stable or done after one clean pass with no
 challenge. Treating review as ceremony to skip when time is short. Stopping
 the moment it works instead of the moment it stops getting better.
-
----
-
-## 7. Machinery must pay rent
-
-**Principle.** Every remaining layer must have a current consumer and either
-unique behavior or a real failure boundary. Prefer deleting, inlining, or
-collapsing machinery when the same required behavior survives in a smaller
-truthful shape. In an AI system, deterministic code should enforce
-product-owned contracts; tests must not pretend model-owned judgment, wording,
-tool choice, or call order is exact.
-
-**Check.** For each wrapper, allowlist, registry, adapter, retry, state machine,
-config surface, prompt rule, parser, deployment check, and test: what current
-invariant does it protect, where is that invariant owned, and what would
-actually fail if this piece disappeared? Does the change retire the superseded
-path, or add another owner beside it? Does each exact test cover a code-owned
-boundary, while stochastic model behavior stays in an eval with semantic
-acceptance criteria? Where a capability is restricted, is the restriction a
-product or security boundary, or does it only steer the model away from a
-supported native path toward a preferred trace? A mechanism cannot justify
-itself by declaring its own route, format, or tolerance to be the contract;
-identify an owner outside the mechanism. For model-facing orchestration, try
-clear instructions and tool descriptions, existing conversation and tool
-context, and native framework composition before adding a router, state
-machine, or parser. Treat a restriction repeatedly loosened or removed by
-maintainers to restore supported behavior as evidence that its invariant was
-misidentified; restoring it requires new class-level evidence. When model calls
-are malformed, simplify the model-facing schema before adding retries or trace
-detectors. For a wrapper that claims to contain untrusted data, trace the value
-through the actual executor; a comment, quoted example, or clean fixture is not
-proof of the boundary.
-
-**Violation.** Forwarding-only layers, one-consumer abstractions with no
-boundary, duplicate sources of truth, compatibility machinery for an
-unproven consumer, or a wrapper added from one observed trace. Regexes,
-thresholds, retries, and fixtures shaped around one model transcript instead
-of a general invariant. Live-model tests that demand exact wording, tool,
-arguments, call count, or order; mocks or a few clean probes reported as proof
-that model behavior is deterministic. A regression test that still passes
-when the behavior it claims to protect is removed. Disabling a supported native
-capability solely to force a preferred tool, route, or sequence. Rebuilding a
-restriction that maintainers repeatedly relaxed or removed to restore supported
-behavior without a new requirement and class-level evidence.

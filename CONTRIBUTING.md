@@ -33,7 +33,7 @@ Otherwise, run source commands with `npm run navi -- <args>`.
   third-party exceptions where they enter Navi.
 - Use Mastra primitives before adding parallel framework machinery. Native and
   local layers must still satisfy
-  [Machinery must pay rent](./builtin/skills/founder/references/rubrics.md#7-machinery-must-pay-rent).
+  [Keep intelligence in the model; machinery at the boundary](./builtin/skills/founder/references/rubrics.md#1-keep-intelligence-in-the-model-machinery-at-the-boundary).
 - Keep model-facing workspace tools read-only and fenced to the selected
   workspace.
 - Cover behavior at the real integration boundary: the CLI, compiler, storage,

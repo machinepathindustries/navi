@@ -13,8 +13,9 @@ import { fileURLToPath } from "node:url";
 //
 // Pure JS with only a node built-in imported: the command subprocess guarantees
 // `node`, not a TypeScript loader or resolvable deps, so building with the grain
-// (rubric 5) means no zod/no .ts import at runtime. The unit tests re-validate
-// this parser's output against the real Zod schema, keeping the two honest.
+// (the dependency-grain rubric) means no zod/no .ts import at runtime. The unit
+// tests re-validate this parser's output against the real Zod schema, keeping
+// the two honest.
 
 const HEADERS = ["Verdict", "Take", "Grounding points", "Decision rules", "What not to do"];
 
