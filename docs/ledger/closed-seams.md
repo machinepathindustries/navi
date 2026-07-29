@@ -53,16 +53,15 @@ Evidence strength:
 
 ### CS-007c — Founder, Founder Advice, and Code Search retain the exact shared read-only toolset
 
-- **Status:** EXPOSED
-- **Evidence strength:** Moderate — the audit reproduced both reduced and empty
-  tool-list gaps, but no surviving focused owner fails yet.
-- **Current evidence:** each flow passed all 614 tests with only `view`, and
-  again with no tools.
-- **Close with:** one focused test over the three real workflow shapes plus the
-  reduced-tool and zero-tool mutations.
-- **Gate:** pending.
-- **Reopen when closed:** any of the three flows changes its required read
-  capability.
+- **Status:** CLOSED
+- **Evidence strength:** Strong — one focused census loads all three shipped
+  shapes and asserts Agent type, exact equality to
+  `READ_ONLY_WORKSPACE_TOOLS`, nonempty access, and no zero-tool warning. Each
+  flow failed independently when reduced to only `view`, and each failed again
+  at zero tools; every restoration returned the census to green.
+- **Owner:** `tests/compiler.test.ts`.
+- **Gate:** GO on DeepSeek V4 Flash, one call, 40.7 seconds.
+- **Reopen when:** any of the three flows changes its required read capability.
 
 ### CS-009 — Quick grader failures fail closed to deep
 

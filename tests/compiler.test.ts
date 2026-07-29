@@ -1010,6 +1010,31 @@ steps:
     expect((await compile(shape, { thread: "t", resource: "cli" })).isErr()).toBe(true);
   });
 
+  it("Founder, Founder Advice, and Code Search use the exact shared read-only toolset", async () => {
+    for (const [workflow, stepName] of [
+      ["founder", "judge"],
+      ["founder-advice", "counsel"],
+      ["code-search", "search"],
+    ] as const) {
+      const shape = (
+        await loadShape(
+          join(process.cwd(), "builtin/workflows", workflow, "action.yaml"),
+          process.cwd(),
+        )
+      )._unsafeUnwrap();
+      const step = shape.steps.find((candidate) => candidate.name === stepName);
+      expect(step?.type).toBe("agent");
+      expect(step?.tools).toEqual([...READ_ONLY_WORKSPACE_TOOLS]);
+      expect(step?.tools.length).toBeGreaterThan(0);
+      expect(
+        shape.lint.some(
+          (finding) =>
+            finding.step === stepName && /zero workspace tools/.test(finding.message),
+        ),
+      ).toBe(false);
+    }
+  });
+
   // No sandbox means Mastra cannot register current or future process tools.
   // Trusted static shell belongs to a YAML command step instead.
   it("agent-controlled shell is structurally absent from the workspace", async () => {
