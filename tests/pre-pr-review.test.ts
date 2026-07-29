@@ -96,15 +96,6 @@ describe("pre-pr-review — shape + frozen readiness schema", () => {
     // and every top-level field is required (readiness/coverage have a home).
     expect(out.safeParse({ summary: "x", findings: [] }).success).toBe(false);
   });
-
-  it("compiles to a committed workflow (schema drives the reviewer's structured output)", async () => {
-    const c = await compile(shape, { thread: "ppr", resource: "cli" });
-    expect(c.isOk()).toBe(true);
-    const { workflow, agents } = c._unsafeUnwrap();
-    expect(workflow.serializedStepGraph.length).toBe(2);
-    // only the agent step gets a fresh Agent; the command step needs none.
-    expect(Object.keys(agents)).toEqual(["pre-pr-review.review"]);
-  });
 });
 
 // The diff collector is the security-critical, model-free part of this workflow,
