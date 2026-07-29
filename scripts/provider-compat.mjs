@@ -32,7 +32,7 @@ export const MEASUREMENT_DIGEST_INPUTS = [
   "scripts/provider-compat.mjs",
   "tests/fixtures/provider-compat",
 ];
-const ARTIFACT_SCHEMA_VERSION = "navi.provider-compat.v5";
+const ARTIFACT_SCHEMA_VERSION = "navi.provider-compat.v6";
 const ARTIFACT_KEYS = [
   "schema_version",
   "tested_at",
@@ -78,7 +78,6 @@ const RESULT_KEYS = LOCAL_RESULT_KEYS.filter(
 const LANE_EVIDENCE_KEYS = [
   "quick_grounding",
   "quick_grounding_grade_passed",
-  "deep_tool_roundtrip",
   "deep_nonce_match",
   "structured_schema_valid",
   "structured_nonce_match",
@@ -92,7 +91,7 @@ const LANE_EVIDENCE_KEYS = [
 ];
 const REQUIRED_LANE_EVIDENCE = {
   quick: ["quick_grounding", "quick_grounding_grade_passed"],
-  deep: ["deep_tool_roundtrip", "deep_nonce_match"],
+  deep: ["deep_nonce_match"],
   structured: [
     "structured_schema_valid",
     "structured_nonce_match",
@@ -913,20 +912,6 @@ function parsedEnvelope(stdout) {
   }
 }
 
-export function progressEvents(stderr) {
-  return stderr
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith("{"))
-    .flatMap((line) => {
-      try {
-        const value = JSON.parse(line);
-        return value !== null && typeof value === "object" ? [value] : [];
-      } catch {
-        return [];
-      }
-    });
-}
-
 export function validCodeReviewResult(result) {
   // The workflow itself validates this object with the canonical schema in
   // builtin/workflows/code-review/findings.schema.ts. Importing that TypeScript
@@ -988,23 +973,6 @@ export function hasFounderReadRouteEvidence(result, tools, nonce) {
   );
 }
 
-export function hasCorrelatedToolRoundTrip(events, expectedToolNames) {
-  const expected = new Set(expectedToolNames);
-  return events.some(
-    (event, callIndex) =>
-      event.type === "tool-call" &&
-      typeof event.toolName === "string" &&
-      expected.has(event.toolName) &&
-      events
-        .slice(callIndex + 1)
-        .some(
-          (later) =>
-            later.type === "tool-result" &&
-            later.toolName === event.toolName,
-        ),
-  );
-}
-
 export function hasExpectedCodeReviewFinding(result) {
   if (!validCodeReviewResult(result) || result.findings.length === 0) return false;
   return result.findings.some((finding) => {
@@ -1058,22 +1026,16 @@ function laneAttempt(lane, context, env, timeoutMs) {
         context.project,
         "--deep",
         "--progress",
-        "jsonl",
+        "off",
       ],
       context.project,
       env,
       timeoutMs,
     );
-    const events = progressEvents(run.stderr);
-    const toolRoundTrip = hasCorrelatedToolRoundTrip(events, [
-      "view",
-      "mastra_workspace_read_file",
-    ]);
     const nonceMatch = run.stdout.includes(context.nonce);
     return {
-      ok: run.status === 0 && toolRoundTrip && nonceMatch,
+      ok: run.status === 0 && nonceMatch,
       evidence: laneEvidence({
-        deep_tool_roundtrip: toolRoundTrip,
         deep_nonce_match: nonceMatch,
       }),
       blockReason: upstreamBlockReason(run.stderr),

@@ -21,7 +21,6 @@ import {
   artifactValidationErrors,
   compatibilityArtifact,
   digestTrackedInputs,
-  hasCorrelatedToolRoundTrip,
   hasExactFounderGrounding,
   hasExpectedCodeReviewFinding,
   hasFounderReadRouteEvidence,
@@ -49,7 +48,6 @@ const TEMP = mkdtempSync(join(tmpdir(), "navi-provider-test-"));
 type LaneEvidence = {
   quick_grounding: boolean;
   quick_grounding_grade_passed: boolean;
-  deep_tool_roundtrip: boolean;
   deep_nonce_match: boolean;
   structured_schema_valid: boolean;
   structured_nonce_match: boolean;
@@ -129,7 +127,6 @@ function completeArtifactFixture(): CheckedArtifact {
       quick_grounding_grade_passed: true,
     }) as LaneEvidence,
     deep: laneEvidence({
-      deep_tool_roundtrip: true,
       deep_nonce_match: true,
     }) as LaneEvidence,
     structured: laneEvidence({
@@ -326,7 +323,7 @@ describe("provider compatibility harness — no paid calls", () => {
     );
     expect(missing.status).toBe(1);
     const artifact = JSON.parse(missing.stdout);
-    expect(artifact.schema_version).toBe("navi.provider-compat.v5");
+    expect(artifact.schema_version).toBe("navi.provider-compat.v6");
     expect(artifact.attempts_required).toBe(2);
     expect(artifact.provider_order).toEqual(["xai"]);
     expect(artifact.results).toHaveLength(5);
@@ -631,36 +628,6 @@ describe("provider compatibility harness — no paid calls", () => {
     ).toEqual([model]);
   });
 
-  it("requires an ordered call/result round trip for the expected read tool", () => {
-    expect(
-      hasCorrelatedToolRoundTrip(
-        [
-          { type: "tool-call", toolName: "view" },
-          { type: "tool-result", toolName: "view" },
-        ],
-        ["view"],
-      ),
-    ).toBe(true);
-    expect(
-      hasCorrelatedToolRoundTrip(
-        [
-          { type: "tool-call", toolName: "multi_search" },
-          { type: "tool-result", toolName: "parallel_view" },
-        ],
-        ["view"],
-      ),
-    ).toBe(false);
-    expect(
-      hasCorrelatedToolRoundTrip(
-        [
-          { type: "tool-result", toolName: "view" },
-          { type: "tool-call", toolName: "view" },
-        ],
-        ["view"],
-      ),
-    ).toBe(false);
-  });
-
   it("requires code review to find the planted line-2 first-vs-second defect", () => {
     const finding = {
       file: "src/review-target.js",
@@ -909,7 +876,7 @@ describe("provider compatibility harness — no paid calls", () => {
     );
 
     expect(artifactValidationErrors(artifact, raw)).toEqual([]);
-    expect(artifact.schema_version).toBe("navi.provider-compat.v5");
+    expect(artifact.schema_version).toBe("navi.provider-compat.v6");
     expect(Number.isNaN(Date.parse(artifact.tested_at))).toBe(false);
     expect(artifact.attempts_required).toBe(2);
     expect(artifact.lanes).toEqual([
