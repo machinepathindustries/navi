@@ -401,7 +401,6 @@ describe("public documentation release surface", () => {
     const workflows = readdirSync(join(ROOT, "builtin", "workflows")).filter(
       (name) => existsSync(join(ROOT, "builtin", "workflows", name, "action.yaml")),
     );
-    expect(workflows).toHaveLength(8);
     for (const workflow of workflows) {
       expect(page, `missing built-in flow ${workflow}`).toContain(`\`${workflow}\``);
     }

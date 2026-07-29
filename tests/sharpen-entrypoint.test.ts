@@ -49,7 +49,6 @@ describe("sharpen parser entrypoint", () => {
         encoding: "utf8",
       });
       expect(result.status).toBe(0);
-      expect(result.stdout.trim().length).toBeGreaterThan(0);
       expect(() => JSON.parse(result.stdout)).not.toThrow();
     } finally {
       rmSync(dir, { recursive: true, force: true });
