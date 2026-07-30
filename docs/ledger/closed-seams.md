@@ -157,7 +157,8 @@ Evidence strength:
 - **Status:** ACCEPTED
 - **Evidence strength:** Accepted risk — Dependabot alert 1,
   `GHSA-866g-f22w-33x8` / `CVE-2026-8769`, is LOW severity and has no published
-  patched version. The lock contains affected transitive 2.x and 3.x copies.
+  patched version. The lock contains the affected transitive 3.x alias; Mastra
+  1.55 removed the prior affected 2.x copy.
 - **Disposition:** keep response bodies bounded by existing request-size and
   timeout controls; do not force an incompatible AI SDK major override.
 - **Reopen when:** an upstream patch/backport appears, severity or exploitability

@@ -1,6 +1,6 @@
 {
   "name": "@machinepath/navi",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A second reader for your coding agent: cited repo answers, reusable flows, and durable gates.",
   "type": "module",
   "repository": {
@@ -44,15 +44,16 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@mastra/evals": "^1.6.0",
     "@types/node": "^26.1.1",
     "typescript": "^6.0.3",
     "vitest": "^3.2.4"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
-    "@mastra/core": "^1.53.0",
-    "@mastra/libsql": "^1.17.1",
-    "@mastra/memory": "^1.23.0",
+    "@mastra/core": "^1.55.0",
+    "@mastra/libsql": "^1.18.0",
+    "@mastra/memory": "^1.24.0",
     "neverthrow": "^8.2.0",
     "ts-pattern": "^5.9.0",
     "tsx": "^4.23.1",

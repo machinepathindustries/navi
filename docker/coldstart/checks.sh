@@ -145,14 +145,14 @@ package_unchanged "--ephemeral"
 say "2 · installed, model-free CLI surfaces work"
 OUT=$(cd "$PROBE" && "${KEYLESS[@]}" "$NAVI" --version 2>&1)
 RC=$?
-[ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.1$' <<<"$OUT" \
+[ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.2$' <<<"$OUT" \
   && ok "version" \
   || bad "version failed (rc=$RC): $(head -1 <<<"$OUT")"
 package_unchanged "version"
 
 OUT=$(cd "$PROBE" && "${KEYLESS[@]}" "$NAVI_CLI" --version 2>&1)
 RC=$?
-[ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.1$' <<<"$OUT" \
+[ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.2$' <<<"$OUT" \
   && ok "navi-cli version" \
   || bad "navi-cli version failed (rc=$RC): $(head -1 <<<"$OUT")"
 package_unchanged "navi-cli version"
@@ -450,7 +450,7 @@ OUT=$(cd "$MANAGED" && "${KEYLESS[@]}" \
   npm exec --offline --package=@machinepath/navi -- \
   navi-cli --version 2>&1)
 RC=$?
-[ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.1$' <<<"$OUT" \
+[ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.2$' <<<"$OUT" \
   && ok "scoped offline npm exec runs from the managed-skill setup" \
   || bad "managed-skill launcher fallback failed (rc=$RC)"
 
