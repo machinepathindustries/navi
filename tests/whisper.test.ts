@@ -220,6 +220,8 @@ describe("whisper contracts — reject structurally invalid objects", () => {
     expect(Directive.safeParse({ ...directiveFull, required_evidence: [] }).success).toBe(false));
   it("Directive: rejects an empty completion_criteria[]", () =>
     expect(Directive.safeParse({ ...directiveFull, completion_criteria: [] }).success).toBe(false));
+  it("judge composite binds directives to the canonical Directive schema", () =>
+    expect(judgeComposite.shape.directives.element).toBe(Directive));
   it("Directive: rejects an out-of-enum severity", () =>
     expect(Directive.safeParse({ ...directiveFull, severity: "critical" }).success).toBe(false));
   it("Directive: rejects an out-of-enum status", () =>

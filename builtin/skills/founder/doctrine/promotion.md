@@ -49,12 +49,12 @@ whether the evidence is primary or secondary.
 - **Oldest to newest.** When you mine history to justify a promotion,
   preserve causality — read how the pattern formed, don't let the recent
   surface flatten it (see the progressive-history rubric).
-- **Repetition, explicit evidence, and founder review — all three.** No
+- **Repetition, explicit evidence, and independent review — all three.** No
   pattern becomes doctrine on repetition alone, or on a single anchor, or on
   taste. The observed pattern must repeat, the evidence must be explicit and
-  primary, and **the founder signs off before a rubric ships.** The
-  founder-review checkpoint is the final gate; nothing promotes to doctrine
-  without it.
+  primary, and **a reviewer outside the founder loop signs off before a rubric
+  ships.** The independent-review checkpoint is the final gate; the doctrine
+  cannot promote itself.
 - **When in doubt, hold it as a candidate.** A weak or borderline pattern is a
   not-yet, not a rule. Doctrine stays sparse on purpose — a rubric that has
   not earned its anchors dilutes the ones that have.

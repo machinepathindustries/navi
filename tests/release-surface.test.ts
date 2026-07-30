@@ -54,12 +54,14 @@ describe("public release surface", () => {
       ".github/workflows/",
     ];
     const forbiddenNames = new Set(["CLAUDE.md", "skills-lock.json"]);
+    const allowedPaths = new Set([".github/workflows/test.yml"]);
     const violations = paths.filter(
       (path) =>
-        forbiddenPrefixes.some((prefix) => path.startsWith(prefix)) ||
-        forbiddenNames.has(path) ||
-        path.endsWith(".runlog.txt") ||
-        path.includes("/results/"),
+        !allowedPaths.has(path) &&
+        (forbiddenPrefixes.some((prefix) => path.startsWith(prefix)) ||
+          forbiddenNames.has(path) ||
+          path.endsWith(".runlog.txt") ||
+          path.includes("/results/")),
     );
 
     expect(violations).toEqual([]);

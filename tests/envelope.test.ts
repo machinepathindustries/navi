@@ -9,6 +9,7 @@ import {
   exitFor,
 } from "../src/contracts/envelope.ts";
 import { exitForGate } from "../src/contracts/whisper.ts";
+import { VerdictSchema } from "../src/contracts/verdict.ts";
 import { buildShape } from "../src/compiler/index.ts";
 import { parseSpecText } from "../src/compiler/parse.ts";
 
@@ -159,6 +160,31 @@ describe("navi.run.v2 envelope — verdict-aware next", () => {
     decision_rules: [] as string[],
     what_not_to_do: [] as string[],
     ...over,
+  });
+
+  it("trims verdict text and rejects whitespace-only entries", () => {
+    const valid = {
+      verdict: "GO",
+      take: "  ship it  ",
+      grounding_points: ["  grounded  "],
+      decision_rules: ["  decide once  "],
+      what_not_to_do: ["  do not widen scope  "],
+    };
+    expect(VerdictSchema.parse(valid)).toEqual({
+      verdict: "GO",
+      take: "ship it",
+      grounding_points: ["grounded"],
+      decision_rules: ["decide once"],
+      what_not_to_do: ["do not widen scope"],
+    });
+    for (const invalid of [
+      { ...valid, take: " \t " },
+      { ...valid, grounding_points: [" \t "] },
+      { ...valid, decision_rules: [" \t "] },
+      { ...valid, what_not_to_do: [" \t "] },
+    ]) {
+      expect(VerdictSchema.safeParse(invalid).success).toBe(false);
+    }
   });
 
   it("GO proceeds as scoped with no re-run (command null)", () => {

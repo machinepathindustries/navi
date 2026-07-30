@@ -56,7 +56,6 @@ import {
   loadShape,
   lintErrors,
   shapeSummary,
-  resolveStructuredObject,
   structuredOutputOptions,
   type Shape,
 } from "./compiler/index.ts";
@@ -85,11 +84,9 @@ import { buildSearchInstructions, buildSearchPrompt, loadPoppedSkill } from "./s
 import { buildOneShotInstructions } from "./search/oneshot-instructions.ts";
 import {
   buildGraderInstructions,
-  GROUNDING_PASS_MESSAGE,
   GroundingGradeSchema,
-  renderGroundingGrade,
-  type GroundingGrade,
 } from "./search/grader-instructions.ts";
+import { renderGroundingStage, runGroundingStage } from "./search/grounding-stage.ts";
 import { buildCatalog, renderCatalog, flowMenu, nextMoves, isSingleRequiredString, argToken } from "./catalog.ts";
 import { deepHandoffCommand, invocationPrefix, shellQuote } from "./invocation.ts";
 import {
@@ -845,8 +842,8 @@ async function bareQuery(query: string, flags: Flags): Promise<never> {
   // thinking-off regardless of the answer's --thinking; on a non-deepseek model
   // toMastraOptions simply drops the deepseek-only field.
   const graderOpts = toMastraOptions(model, resolveSettings(model, { thinking: "disabled" }));
-  const graderResult = await ResultAsync.fromPromise(
-    agent.generate(graderPrompt, {
+  const groundingStage = await runGroundingStage(async () => {
+    const result = await agent.generate(graderPrompt, {
       instructions: buildGraderInstructions(),
       memory: { thread: `${thread}-grade`, resource: "cli" },
       maxSteps: 1,
@@ -856,30 +853,13 @@ async function bareQuery(query: string, flags: Flags): Promise<never> {
       activeTools: [],
       structuredOutput: structuredOutputOptions(GroundingGradeSchema),
       ...graderOpts,
-    }),
-    errStr,
-  ).andThen((res) =>
-    match(res.finishReason)
-      .with("stop", () =>
-        resolveStructuredObject(
-          "grounding-grade",
-          res.object,
-          res.text,
-          GroundingGradeSchema,
-        ).map((grade) => grade as GroundingGrade),
-      )
-      .otherwise((reason) =>
-        err(`grounding grade did not stop cleanly: finishReason=${reason}`),
-      ),
-  );
-  const graderText = graderResult.match(
-    renderGroundingGrade,
-    (message) => {
-      process.stderr.write(`\nnavi: grade stage failed (answer shown; deep handoff required): ${message}\n`);
-      return "Grounding grade unavailable — escalating conservatively.";
-    },
-  );
-  process.stdout.write(`\n\n${rule("grounding check")}\n${graderText}\n`);
+    });
+    return {
+      finishReason: result.finishReason,
+      object: result.object,
+      text: result.text,
+    };
+  });
 
   // --- self-steering next command -------------------------------------------
   // Only a validated COMPLETE + no grade lets the quick answer stand. Every other
@@ -889,10 +869,6 @@ async function bareQuery(query: string, flags: Flags): Promise<never> {
   // a source checkout); -w keeps the SAME workspace and -t keeps the SAME session;
   // shellQuote keeps spaced/meta values pasteable into /bin/sh as one argument.
   const deepCmd = deepHandoffCommand(query, thread, flags.workspace);
-  const graderSaysEscalate = graderResult.match(
-    (grade) => grade.verdict !== "COMPLETE" || grade.escalate,
-    () => true,
-  );
   // Catalog-derived "same question, different lens" list. INFORMATIONAL only —
   // never a handed command. The ⚠ branch's `${deepCmd}` stays THE ONLY handed
   // command; the pass branch still contains NO --deep command.
@@ -903,20 +879,9 @@ async function bareQuery(query: string, flags: Flags): Promise<never> {
   ].join("\n");
   // A runnable `--deep` command appears only when the grounding result asks for it,
   // so an interop harness never escalates a passing quick answer.
-  process.stdout.write(
-    match(graderSaysEscalate)
-      .with(
-        true,
-        () =>
-          `\n${rule("next")}\n⚠ This quick answer needs a deeper, tool-backed repository read. Run:\n  ${deepCmd}\n${movesBlock}\n`,
-      )
-      .with(
-        false,
-        () =>
-          `\n${rule("next")}\n${GROUNDING_PASS_MESSAGE}${movesBlock}\n`,
-      )
-      .exhaustive(),
-  );
+  const groundingOutput = renderGroundingStage(groundingStage, deepCmd, movesBlock);
+  process.stderr.write(groundingOutput.stderr);
+  process.stdout.write(groundingOutput.stdout);
   await recordBareTurn({
     kind: "plain",
     run_id: runId,
