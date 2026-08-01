@@ -79,16 +79,10 @@ export function outputSchema(spec: Record<string, string>): Result<z.ZodTypeAny,
 // keys the compiler keys structured-output off (compile.ts `runAgent`).
 export type ResolvedOutput = { schema: z.ZodTypeAny; fields: string[] };
 
-// A `.ts` output reference resolves relative to action.yaml and must default-export a
-// Zod OBJECT schema. This is the escape hatch for shapes the inline token grammar
-// can't express — an array of finding objects (code-review), an enum verdict
-// (founder) — where the object's FIELDS may be any Zod type; only the top-level
-// export must be an object, so its keys are the honest `outputFields`. Every
-// failure mode (missing file, no default export, non-object export) is a loud
-// Err surfaced by shape.ts as a lint error — never a throw across the compiler
-// seam. The dynamic import runs the schema module, but never a model, so
-// `--shape` stays model-free.
-export function resolveSchemaRef(ref: string, dir: string): ResultAsync<ResolvedOutput, string> {
+// Resolve any default-exported Zod schema relative to action.yaml. JSON input
+// arguments use the schema directly; output references narrow it to a Zod object
+// below so outputFields remain knowable. Importing a schema is model-free.
+export function resolveZodSchemaRef(ref: string, dir: string): ResultAsync<z.ZodTypeAny, string> {
   const abs = match(isAbsolute(ref))
     .with(true, () => ref)
     .with(false, () => resolvePath(dir, ref))
@@ -96,29 +90,46 @@ export function resolveSchemaRef(ref: string, dir: string): ResultAsync<Resolved
   // Lazy by construction: the dynamic import only exists inside the arm where the
   // file is known to be there, so a missing schema still never runs a module.
   return match(existsSync(abs))
-    .with(false, () => errAsync<ResolvedOutput, string>(`schema file not found: "${ref}" (looked at ${abs})`))
+    .with(false, () =>
+      errAsync<z.ZodTypeAny, string>(`schema file not found: "${ref}" (looked at ${abs})`),
+    )
     .with(true, () =>
       ResultAsync.fromPromise(
         import(pathToFileURL(abs).href) as Promise<unknown>,
         (e) => `cannot import schema "${ref}": ${errStr(e)}`,
-      ).andThen((mod) => pickObjectSchema(mod, ref)),
+      ).andThen((mod) => pickSchema(mod, ref)),
     )
     .exhaustive();
 }
 
-// The three outcomes of the default export are a closed set — absent, a Zod
-// object, anything else — so they are three arms in declaration order.
-function pickObjectSchema(mod: unknown, ref: string): Result<ResolvedOutput, string> {
+// A `.ts` output reference must still default-export a Zod OBJECT schema. This
+// is the escape hatch for shapes the inline grammar cannot express; its object
+// keys are the honest `outputFields`.
+export function resolveSchemaRef(ref: string, dir: string): ResultAsync<ResolvedOutput, string> {
+  return resolveZodSchemaRef(ref, dir).andThen((schema) =>
+    match(schema)
+      .with(P.instanceOf(z.ZodObject), (objectSchema) =>
+        ok<ResolvedOutput, string>({ schema: objectSchema, fields: Object.keys(objectSchema.shape) }),
+      )
+      .otherwise(() =>
+        err<ResolvedOutput, string>(
+          `schema "${ref}" default export is not a Zod object schema (a z.array/z.enum must be a FIELD inside z.object({ … }))`,
+        ),
+      ),
+  );
+}
+
+// The three outcomes of a default export are a closed set — absent, a Zod
+// schema, anything else — so they are three arms in declaration order.
+function pickSchema(mod: unknown, ref: string): Result<z.ZodTypeAny, string> {
   return match((mod as { default?: unknown }).default)
     .with(undefined, () =>
-      err<ResolvedOutput, string>(`schema "${ref}" has no default export — \`export default z.object({ … })\``),
+      err<z.ZodTypeAny, string>(`schema "${ref}" has no default export — export a Zod schema as default`),
     )
-    .with(P.instanceOf(z.ZodObject), (schema) =>
-      ok<ResolvedOutput, string>({ schema, fields: Object.keys(schema.shape) }),
-    )
+    .with(P.instanceOf(z.ZodType), (schema) => ok<z.ZodTypeAny, string>(schema))
     .otherwise(() =>
-      err<ResolvedOutput, string>(
-        `schema "${ref}" default export is not a Zod object schema (a z.array/z.enum must be a FIELD inside z.object({ … }))`,
+      err<z.ZodTypeAny, string>(
+        `schema "${ref}" default export is not a Zod schema`,
       ),
     );
 }

@@ -3,6 +3,7 @@
 import {
   cpSync,
   existsSync,
+  lstatSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -695,6 +696,11 @@ export function digestTrackedInputs(inputs, root = REPO_ROOT) {
   const names = entries.map(({ name }) => name).sort();
   for (const name of names) {
     const path = join(root, name);
+    // The index still lists a tracked file after it has been deleted in the
+    // working tree. Hash the source that is actually present; `git.dirty`
+    // independently prevents this development state from becoming release
+    // evidence. lstat preserves tracked symlinks, including broken ones.
+    if (lstatSync(path, { throwIfNoEntry: false }) === undefined) continue;
     const mode = modes.get(name);
     if (mode === "120000") {
       hash.update(

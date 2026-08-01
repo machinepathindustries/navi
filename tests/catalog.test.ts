@@ -1,8 +1,8 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { buildCatalog, renderCatalog, nextMoves, flowMenu, type CatalogEntry } from "../src/catalog.ts";
+import { buildCatalog, renderCatalog, flowMenu, type CatalogEntry } from "../src/catalog.ts";
 
 // Catalog is a pure filesystem display pass, tested against a controlled temp tier
 // tree for the CONSUMER tiers (project `.navi` + pinned `.agents`, both anchored at
@@ -42,6 +42,27 @@ beforeAll(() => {
   // root, so builtin content comes from the real repo regardless of basePath.
   skill(".navi/skills", "alpha", "project alpha skill");
   skill(".agents/skills", "beta", "pinned beta skill");
+  // `navi install` pins navi-interop as a symlink into the installed package.
+  // Model that shape with a source outside every catalog tier.
+  skill(".catalog-fixtures/skills", "navi-interop", "pinned interop skill");
+  symlinkSync(
+    join(ROOT, ".catalog-fixtures/skills/navi-interop"),
+    join(ROOT, ".agents/skills/navi-interop"),
+    "dir",
+  );
+  // Other symlink/file shapes in a tier are not catalog entries.
+  symlinkSync(
+    join(ROOT, ".catalog-fixtures/skills/missing"),
+    join(ROOT, ".agents/skills/dangling-link"),
+    "dir",
+  );
+  writeFileSync(join(ROOT, ".catalog-fixtures/not-a-directory"), "fixture\n");
+  symlinkSync(
+    join(ROOT, ".catalog-fixtures/not-a-directory"),
+    join(ROOT, ".agents/skills/file-link"),
+    "file",
+  );
+  writeFileSync(join(ROOT, ".agents/skills/ordinary-file"), "not a skill\n");
   // COLLISION: same name in a project + pinned tier (both classify 'local')
   skill(".agents/skills", "alpha", "pinned alpha skill");
   // a skill dir with no SKILL.md → not a listing
@@ -92,6 +113,21 @@ describe("buildCatalog — tier labels + descriptions", () => {
   it("skips a directory that has no manifest", () => {
     const { skills } = buildCatalog(ROOT);
     expect(skills.some((s) => s.name === "no-manifest")).toBe(false);
+  });
+
+  it("discovers a pinned skill directory symlink when its SKILL.md exists", () => {
+    const { skills } = buildCatalog(ROOT);
+    const interop = find(skills, "navi-interop", "pinned");
+    expect(interop).toBeTruthy();
+    expect(interop?.description).toBe("pinned interop skill");
+    expect(interop?.path).toBe(".agents/skills/navi-interop/SKILL.md");
+  });
+
+  it("skips dangling symlinks, symlinks to files, and ordinary files", () => {
+    const { skills } = buildCatalog(ROOT);
+    expect(skills.some((s) => s.name === "dangling-link")).toBe(false);
+    expect(skills.some((s) => s.name === "file-link")).toBe(false);
+    expect(skills.some((s) => s.name === "ordinary-file")).toBe(false);
   });
 
   it("lists a skill with a malformed manifest rather than throwing", () => {
@@ -203,45 +239,7 @@ describe("buildCatalog — builtin tier anchors at the navi install", () => {
   });
 });
 
-describe("nextMoves + shortWhen (whisper move list)", () => {
-  it("nextMoves pre-fills a single-required-string workflow with the query (label-first)", () => {
-    // founder has exactly one required string arg (`request`) in the install builtin.
-    const q = "should navis session list default to open?";
-    const moves = nextMoves(process.cwd(), q);
-    expect(moves.length).toBeGreaterThan(0);
-    // Label-first layout: shortWhen line ending ":", then indented command.
-    const cmdIdx = moves.findIndex((l) => /^\s+navi run founder /.test(l));
-    expect(cmdIdx).toBeGreaterThan(0);
-    expect(moves[cmdIdx - 1]).toMatch(/:$/);
-    expect(moves[cmdIdx - 1]).toMatch(/Founder judgment/);
-    // shell-quoted query is in the command line (ready to copy-paste)
-    expect(moves[cmdIdx]).toContain("should navis session list default");
-  });
-
-  it("nextMoves with a query includes only prefillable lenses (not --stdin/range flows)", () => {
-    const joined = nextMoves(process.cwd(), "what about sessions?").join("\n");
-    // Lenses that take THIS question (one required string arg).
-    expect(joined).toMatch(/navi run founder /);
-    expect(joined).toMatch(/navi run founder-advice /);
-    expect(joined).toMatch(/navi run code-search /);
-    expect(joined).toMatch(/navi run web-search /);
-    // Flows needing --stdin or a range are NOT next-moves for a just-asked question.
-    expect(joined).not.toMatch(/navi run edge-walk/);
-    expect(joined).not.toMatch(/navi run code-review/);
-    expect(joined).not.toMatch(/navi run pre-pr-review/);
-  });
-
-  it("nextMoves without a query keeps the placeholder token shape", () => {
-    const moves = nextMoves(process.cwd(), undefined);
-    const founder = moves.find((l) => l.startsWith("navi run founder "));
-    expect(founder).toMatch(/navi run founder "<request>"/);
-    // Still only the single-required-string set (filter is not query-gated).
-    const joined = moves.join("\n");
-    expect(joined).not.toMatch(/edge-walk/);
-    expect(joined).not.toMatch(/code-review/);
-    expect(joined).not.toMatch(/pre-pr-review/);
-  });
-
+describe("flowMenu + shortWhen", () => {
   it("shortWhen cuts at a clause boundary without ellipsis when possible", () => {
     // flowMenu is the public surface that uses shortWhen; founder description has
     // a colon/clause shape longer than the 64-char cap.

@@ -13,9 +13,9 @@ import { THINKING_MODES, REASONING_EFFORTS } from "../mastra/model-settings.ts";
 // A workflow input argument. A `string` arg (the default) is positional-bound in
 // the CLI (joined argv text). A `json` arg binds a whole JSON VALUE via --stdin —
 // `json` is used by flows that accept structured input. It validates as
-// z.unknown() (compile.ts argsSchema): the token asserts "a JSON value, not
-// positional prose", never a global z.object() — a workflow's own usage carries
-// any required object shape, not the grammar (founder guardrail).
+// z.unknown() unless that argument opts into a co-located `schema:` reference:
+// the token still means "a JSON value, not positional prose", while the flow can
+// own its specific boundary without imposing one global object grammar.
 export const ArgSpec = z
   .object({
     // "string" (default) | "json". Only a json-typed arg opts into the
@@ -24,6 +24,9 @@ export const ArgSpec = z
     required: z.boolean().optional(),
     default: z.unknown().optional(),
     description: z.string().optional(),
+    // Optional only for `type: json`; shape.ts reports a loud wiring error when
+    // a string arg attempts to attach one. Resolved relative to action.yaml.
+    schema: z.string().min(1).optional(),
   })
   .strict();
 export type ArgSpec = z.infer<typeof ArgSpec>;

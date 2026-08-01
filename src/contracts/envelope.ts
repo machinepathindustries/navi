@@ -279,7 +279,8 @@ export function gateEnvelope(
 // The gate-aware `next` block is present on every gate:
 // DIRECT/REPAIR → the (first blocking) directive's action + required_evidence +
 // the continuation command; CLEAR → proceed-and-checkpoint on the same session;
-// BLOCKED/ESCALATE → surface-to-human, then re-run after resolution; COMPLETE →
+// BLOCKED → return the missing prerequisite to the controlling agent; ESCALATE
+// → surface a genuine authority decision to the human; COMPLETE →
 // resolved, command null UNLESS the CLI resolved a catalog-validated handoff
 // (applies to COMPLETE only and never competes with another continuation). The
 // `command` is the derived-prefix string the CLI baked in — composed from navi's
@@ -317,12 +318,18 @@ function nextForGate(
       command,
       when: "at your next checkpoint",
     }))
-    .with("BLOCKED", () => ({
-      instruction: "Gate BLOCKED — surface to the human; do not proceed.",
-      return: [],
-      command,
-      when: "after the human resolves the block",
-    }))
+    .with("BLOCKED", () => {
+      const d = firstBlockingDirective(directives, blockingIds);
+      const prerequisite = match(d?.action?.trim())
+        .with(P.string.minLength(1), (action) => action)
+        .otherwise(() => "Obtain the missing prerequisite.");
+      return {
+        instruction: `Gate BLOCKED — return this prerequisite to the controlling agent: ${prerequisite}`,
+        return: d?.required_evidence ?? [],
+        command,
+        when: "after the controlling agent obtains the prerequisite",
+      };
+    })
     .with("ESCALATE", () => ({
       instruction: "Gate ESCALATE — surface to the human for a decision.",
       return: [],
@@ -364,7 +371,7 @@ export function failureEnvelope(inp: BuildInputs & { reason: string }): RunEnvel
     ...WHISPER_EMPTY,
     result: null, // no final step produced an output
     next: {
-      instruction: `Run failed (${inp.reason}). Surface to the human; do not treat the task as complete.`,
+      instruction: `Run failed (${inp.reason}). Return the failure to the controlling agent; do not treat the task as complete.`,
       return: [],
       command: inp.nextCommand,
       when: "after resolving the failure",

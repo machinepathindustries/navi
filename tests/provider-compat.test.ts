@@ -493,9 +493,9 @@ describe("provider compatibility harness — no paid calls", () => {
     ).toBe(false);
   });
 
-  it("keeps Founder, Founder advice, and sharpen portable without dropping DeepSeek defaults", () => {
+  it("keeps Founder, Founder advice, and brainstorm portable without dropping DeepSeek defaults", () => {
     const entry = join(ROOT, "bin", "navi.mjs");
-    for (const flow of ["founder", "founder-advice", "sharpen"]) {
+    for (const flow of ["founder", "founder-advice", "brainstorm"]) {
       const anthropic = spawnSync(
         process.execPath,
         [entry, "run", flow, "--shape", "--json", "--progress", "off"],
@@ -685,6 +685,9 @@ describe("provider compatibility harness — no paid calls", () => {
 
     writeFileSync(join(root, "src", "runtime.ts"), "export const value = 2;\n");
     expect(digestTrackedInputs(["src"], root)).not.toBe(before);
+
+    rmSync(join(root, "src", "runtime.ts"));
+    expect(digestTrackedInputs(["src"], root)).toBe(createHash("sha256").digest("hex"));
   });
 
   it("orders evidence paths by code point instead of the host locale", () => {

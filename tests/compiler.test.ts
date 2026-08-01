@@ -410,7 +410,7 @@ steps:
   });
 
   it("differs correctly between a builtin and a consumer-tier fixture workflow (per-step)", async () => {
-    const builtinPath = join(process.cwd(), "builtin/workflows/sharpen/action.yaml");
+    const builtinPath = join(process.cwd(), "builtin/workflows/web-search/action.yaml");
     const consumerPath = join(process.cwd(), "tests/fixtures/echo-command/action.yaml");
     const builtin = (await loadShape(builtinPath, process.cwd()))._unsafeUnwrap();
     const consumer = (await loadShape(consumerPath, process.cwd()))._unsafeUnwrap();
@@ -418,7 +418,7 @@ steps:
     const cDir = consumer.steps.find((s) => s.type === "command")!.actionDir;
     expect(isAbsolute(bDir)).toBe(true);
     expect(isAbsolute(cDir)).toBe(true);
-    expect(bDir).toBe(join(process.cwd(), "builtin/workflows/sharpen"));
+    expect(bDir).toBe(join(process.cwd(), "builtin/workflows/web-search"));
     expect(cDir).toBe(join(process.cwd(), "tests/fixtures/echo-command"));
     expect(bDir).not.toBe(cDir);
   });
@@ -575,7 +575,9 @@ steps:
       "judgey.judge",
     );
     expect(text).toMatch(/## references\/rubrics\.md/);
+    expect(text).toMatch(/## references\/slop-detection\.md/);
     expect(text).toMatch(/force multiplier/i);
+    expect(text).toMatch(/duplicate live ownership/i);
     // doctrine/promotion.md says it is "not part of the v1 verdict path — do not
     // wire it into a live judgment", so it lives OUTSIDE references/. Mastra only
     // discovers references|scripts|assets, so the directory choice is the whole
@@ -602,6 +604,7 @@ steps:
     // The builtin tier anchors at INSTALL_ROOT, so from here skill.path is an
     // absolute path — the one case getReference has to pass through unchanged.
     expect(text).toMatch(/## references\/rubrics\.md/);
+    expect(text).toMatch(/## references\/slop-detection\.md/);
     expect(text).toMatch(/force multiplier/i);
   });
 
@@ -1098,6 +1101,34 @@ steps:
     // the type surfaces in the --shape projection (additive, keyless).
     const summarized = shapeSummary(shape).args as { name: string; type: string }[];
     expect(summarized.find((a) => a.name === "input")?.type).toBe("json");
+  });
+
+  it("rejects an arg schema on a string arg and a missing JSON-arg schema reference", async () => {
+    const stringArg = await shapeFrom(`
+name: string-schema
+args:
+  input:
+    schema: input.schema.ts
+steps:
+  - name: s
+    type: command
+    command: echo ok
+`);
+    expect(lintErrors(stringArg).some((e) => /is not type: json/.test(e.message))).toBe(true);
+
+    const missing = await shapeFrom(`
+name: missing-input-schema
+args:
+  input:
+    type: json
+    schema: does-not-exist.schema.ts
+steps:
+  - name: s
+    type: command
+    command: echo ok
+`);
+    expect(lintErrors(missing).some((e) => /arg "input" schema: .*not found/.test(e.message))).toBe(true);
+    expect((await compile(missing, { thread: "j", resource: "cli" })).isErr()).toBe(true);
   });
 
   it("a json arg ACCEPTS an object input — Mastra input validation passes", async () => {

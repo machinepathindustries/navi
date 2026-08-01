@@ -87,7 +87,11 @@ describe("navi install — owned skill, launcher, and receipt", () => {
       launcher_source: localLauncherSource(ROOT),
       created_dirs: [".agents", ".agents/skills", ".agents/bin"],
     });
-    expect(renderInstall(plan, dir)).toContain(launcher);
+    const rendered = renderInstall(plan, dir);
+    expect(rendered).toContain(launcher);
+    expect(rendered).toContain(`ownership receipt: ${plan.receiptPath}`);
+    expect(rendered).toContain(`${plan.launcherTarget} catalog -w ${plan.projectRoot}`);
+    expect(rendered).toContain(`${plan.launcherTarget} help brainstorm -w ${plan.projectRoot}`);
   });
 
   it("is idempotent and refuses either foreign target", () => {
@@ -416,6 +420,27 @@ describe("navi install — checkout bootstrap without global PATH", () => {
     const launcher = join(dir, ".agents", "bin", "navi");
     const nodePath = dirname(process.execPath);
     const cleanPath = `${nodePath}:/usr/bin:/bin`;
+    const canonicalLauncher = join(realpathSync(dirname(launcher)), "navi");
+    const help = spawnSync(launcher, ["help", "brainstorm", "-w", dir], {
+      cwd: dir,
+      encoding: "utf8",
+      timeout: 60_000,
+      env: { ...process.env, PATH: cleanPath, NAVI_DB: undefined },
+    });
+    expect(help.status, help.stderr).toBe(0);
+    expect(help.stdout).toContain(`${canonicalLauncher} run brainstorm --json --stdin`);
+    expect(help.stdout).not.toMatch(/(^|\s)navi run brainstorm/);
+
+    const catalog = spawnSync(launcher, ["catalog", "-w", dir], {
+      cwd: dir,
+      encoding: "utf8",
+      timeout: 60_000,
+      env: { ...process.env, PATH: cleanPath, NAVI_DB: undefined },
+    });
+    expect(catalog.status, catalog.stderr).toBe(0);
+    expect(catalog.stdout).toContain(`${canonicalLauncher} run brainstorm --json --stdin`);
+    expect(catalog.stdout).toMatch(/pinned\s+navi-interop/);
+
     const first = spawnSync(launcher, ["run", GATE, "DIRECT", "-w", ROOT, "--json"], {
       cwd: dir,
       encoding: "utf8",
@@ -424,7 +449,6 @@ describe("navi install — checkout bootstrap without global PATH", () => {
     });
     expect(first.status, first.stderr).toBe(0);
     const envelope = JSON.parse(first.stdout) as { session_id: string; next: { command: string } };
-    const canonicalLauncher = join(realpathSync(dirname(launcher)), "navi");
     expect(envelope.next.command.startsWith(canonicalLauncher)).toBe(true);
     expect(envelope.next.command.startsWith("navi ")).toBe(false);
 

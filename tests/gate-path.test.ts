@@ -159,12 +159,15 @@ describe("gate-command — whisper envelope fields + gate-aware next", () => {
     expect(env.next.command).toBe(`${PREFIX} run ${GATE} '<gate>' -t ${env.session_id}`);
   });
 
-  it("CLEAR proceeds-and-checkpoints; BLOCKED surfaces to the human — both keep the continuation command", () => {
+  it("CLEAR proceeds-and-checkpoints; BLOCKED returns to the controller — both keep the continuation command", () => {
     const clear = gateRun("CLEAR");
     expect(clear.env.next.instruction).toMatch(/CLEAR — proceed/);
     expect(clear.env.next.command).toBe(`${PREFIX} run ${GATE} '<gate>' -t ${clear.env.session_id}`);
     const blocked = gateRun("BLOCKED");
-    expect(blocked.env.next.instruction).toMatch(/BLOCKED — surface to the human/);
+    expect(blocked.env.next.instruction).toMatch(/BLOCKED — return .* controlling agent/);
+    expect(blocked.env.next.instruction).toMatch(/produce a call path/);
+    expect(blocked.env.next.return).toEqual(["call_path"]);
+    expect(blocked.env.next.instruction).not.toMatch(/human/i);
     expect(blocked.env.next.command).toContain(`'<gate>' -t ${blocked.env.session_id}`);
   });
 

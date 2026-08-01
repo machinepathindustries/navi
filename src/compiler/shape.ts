@@ -6,7 +6,13 @@ import { isAbsolute, resolve as resolvePath } from "node:path";
 import type { z } from "zod";
 import { match, P } from "ts-pattern";
 import { compileCondition, type Predicate } from "./condition.ts";
-import { COMMAND_OUTPUT, outputSchema, resolveSchemaRef, TEXT_OUTPUT } from "./output-schema.ts";
+import {
+  COMMAND_OUTPUT,
+  outputSchema,
+  resolveSchemaRef,
+  resolveZodSchemaRef,
+  TEXT_OUTPUT,
+} from "./output-schema.ts";
 import { dependsOf, type StepSpec, type WorkflowSpec } from "./spec.ts";
 import { DEFAULT_MAX_STEPS, DEFAULT_MODEL } from "../mastra/agents/navi.ts";
 import { isDeepseek, resolveSettings, type ModelSettings } from "../mastra/model-settings.ts";
@@ -31,6 +37,8 @@ export type ResolvedArg = {
   required: boolean;
   default: unknown;
   description?: string | undefined;
+  schemaRef?: string | undefined;
+  inputSchema?: z.ZodTypeAny | undefined;
 };
 
 // Discriminated on `type` so match(rs.type).with("agent"/"command") narrows the
@@ -111,21 +119,48 @@ export async function buildShape(spec: WorkflowSpec, dir: string = process.cwd()
   return {
     name: spec.name,
     description: spec.description,
-    args: resolveArgs(spec),
+    args: await resolveArgs(spec, lint, dir),
     steps,
     lint,
     defaultModel,
   };
 }
 
-function resolveArgs(spec: WorkflowSpec): ResolvedArg[] {
-  return Object.entries(spec.args ?? {}).map(([name, a]) => ({
-    name,
-    type: a.type ?? "string",
-    required: a.required ?? false,
-    default: a.default,
-    description: a.description,
-  }));
+async function resolveArgs(spec: WorkflowSpec, lint: LintFinding[], dir: string): Promise<ResolvedArg[]> {
+  const resolved: ResolvedArg[] = [];
+  for (const [name, arg] of Object.entries(spec.args ?? {})) {
+    const type = arg.type ?? "string";
+    const base: ResolvedArg = {
+      name,
+      type,
+      required: arg.required ?? false,
+      default: arg.default,
+      description: arg.description,
+      schemaRef: arg.schema,
+    };
+    resolved.push(
+      await match({ schemaRef: arg.schema, type })
+        .with({ schemaRef: undefined }, async () => base)
+        .with({ schemaRef: P.string, type: "string" }, async ({ schemaRef }) => {
+          lint.push({
+            level: "error",
+            message: `arg "${name}" sets schema "${schemaRef}" but is not type: json`,
+          });
+          return base;
+        })
+        .with({ schemaRef: P.string, type: "json" }, async ({ schemaRef }) =>
+          (await resolveZodSchemaRef(schemaRef, dir)).match(
+            (inputSchema) => ({ ...base, inputSchema }),
+            (message) => {
+              lint.push({ level: "error", message: `arg "${name}" schema: ${message}` });
+              return base;
+            },
+          ),
+        )
+        .exhaustive(),
+    );
+  }
+  return resolved;
 }
 
 // One resolver for all three output forms, returning the compiled schema AND its
@@ -288,8 +323,8 @@ function lintStep(
       // agentStreamToolOptions), not all workspace tools. That
       // silent-degradation failure mode is real: a step that needs `view` but
       // ships with none will not crash; the model fills gaps from training data.
-      // WARNING not error — some steps genuinely want no tools (sharpen, web-
-      // search synthesize). Name the step so `--shape` surfaces it (renderShape
+      // WARNING not error — some steps genuinely want no tools (for example,
+      // web-search synthesize). Name the step so `--shape` surfaces it (renderShape
       // lint: block). Mirrors the LOUD unknown-tool convention above.
       match((s.tools ?? []).length)
         .with(0, () =>
@@ -369,7 +404,14 @@ export function shapeSummary(shape: Shape) {
     name: shape.name,
     description: shape.description,
     defaultModel: shape.defaultModel,
-    args: shape.args,
+    args: shape.args.map((a) => ({
+      name: a.name,
+      type: a.type,
+      required: a.required,
+      default: a.default,
+      description: a.description,
+      schema: a.schemaRef ?? null,
+    })),
     steps: shape.steps.map((s) => ({
       name: s.name,
       type: s.type,

@@ -266,19 +266,20 @@ describe("navi CLI — bare-query tuning flags validate before the model call", 
       // Flow help reads argument descriptions from the resolved shape because
       // catalog entries intentionally omit them.
       expect(r.stdout).toMatch(/artifact-grounded judgment/);
-      expect(r.stdout).toMatch(/navi run founder "<request>"/);
+      expect(r.stdout).toMatch(/run founder "<request>"/);
     }
     expect(a.stdout).toBe(b.stdout);
     expect(c.stdout).toBe(b.stdout);
   });
 
-  // The invocation line is copyable: JSON arguments bind through --stdin, using
-  // the same argument-token derivation as the catalog.
-  it("a json-typed arg shows --stdin, not a positional placeholder", () => {
+  // The invocation line is copyable: JSON arguments select structured output and
+  // bind through stdin, using the same argument-token derivation as the catalog.
+  it("a json-typed arg shows --json --stdin, not a positional placeholder", () => {
     const r = navi(["help", "edge-walk"]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toMatch(/navi run edge-walk --stdin/);
-    expect(r.stdout).not.toMatch(/navi run edge-walk <input>/);
+    expect(r.stdout).toMatch(/run edge-walk --json --stdin/);
+    expect(r.stdout).not.toMatch(/run edge-walk <input>/);
+    expect(r.stdout).toMatch(/bind with --json --stdin/);
   });
 
   it("`navi help <path>` works, as HELP advertises", () => {

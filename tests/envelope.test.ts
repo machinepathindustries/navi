@@ -61,6 +61,8 @@ describe("navi.run.v2 envelope", () => {
     expect(env.verdict).toBeNull();
     expect(env.status).toBe("failed");
     expect(exitFor(env)).toBe(1);
+    expect(env.next.instruction).toMatch(/Return the failure to the controlling agent/);
+    expect(env.next.instruction).not.toMatch(/human/i);
   });
 
   it("maps every gate to its exit code", () => {
@@ -322,10 +324,13 @@ describe("navi.run.v2 envelope — gate-derived whisper path", () => {
     }
   });
 
-  it("CLEAR proceeds-and-checkpoints; BLOCKED/ESCALATE surface to the human — all carry the continuation command", () => {
+  it("CLEAR proceeds, BLOCKED returns to the controller, and only ESCALATE names the human", () => {
     expect(gateEnv("CLEAR").next.instruction).toMatch(/CLEAR — proceed/);
     expect(gateEnv("CLEAR").next.command).toBe(CONTINUATION_CMD);
-    expect(gateEnv("BLOCKED").next.instruction).toMatch(/BLOCKED — surface to the human/);
+    expect(gateEnv("BLOCKED").next.instruction).toMatch(/BLOCKED — return .* controlling agent/);
+    expect(gateEnv("BLOCKED").next.instruction).toMatch(/produce a call path/);
+    expect(gateEnv("BLOCKED").next.return).toEqual(["call_path"]);
+    expect(gateEnv("BLOCKED").next.instruction).not.toMatch(/human/i);
     expect(gateEnv("BLOCKED").next.command).toBe(CONTINUATION_CMD);
     expect(gateEnv("ESCALATE").next.instruction).toMatch(/ESCALATE — surface to the human/);
     expect(gateEnv("ESCALATE").next.command).toBe(CONTINUATION_CMD);
