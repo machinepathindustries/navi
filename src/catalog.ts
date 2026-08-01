@@ -8,7 +8,6 @@ import { fileURLToPath } from "node:url";
 import { match, P } from "ts-pattern";
 import { Result } from "neverthrow";
 import { parse as parseYaml } from "yaml";
-import { shellQuote } from "./invocation.ts";
 import { shortClause } from "./style.ts";
 
 // The catalog is a display pass over Navi's configured skill and workflow tiers,
@@ -162,7 +161,13 @@ function safeDirNames(absDir: string): string[] {
     () => readdirSync(absDir, { withFileTypes: true }),
     () => [] as never,
   )()
-    .map((ents) => ents.filter((e) => e.isDirectory()).map((e) => e.name))
+    // `navi install` pins navi-interop as a directory symlink. Dirent does not
+    // report a symlink-to-directory as `isDirectory()`, so keep symlinks as
+    // candidates and let scanTier's expected-manifest check below decide whether
+    // they are valid catalog entries. Regular files never enter the candidate set.
+    .map((ents) =>
+      ents.filter((e) => e.isDirectory() || e.isSymbolicLink()).map((e) => e.name),
+    )
     .unwrapOr([]);
 }
 
@@ -181,6 +186,9 @@ function scanTier(basePath: string, kind: Kind, tier: Tier): CatalogEntry[] {
       safeDirNames(absTier)
         .sort()
         .map((name) => ({ name, relPath: join(tier.dir, name, manifest) }))
+        // This follows valid directory symlinks while rejecting dangling links,
+        // links to files, and directories that do not contain the expected
+        // SKILL.md/action.yaml manifest.
         .filter(({ relPath }) => existsSync(join(base, relPath)))
         .map(({ name, relPath }) => {
           const { description, args } = readManifest(join(base, relPath), kind);
@@ -280,14 +288,16 @@ function annotate(entry: CatalogEntry, siblings: CatalogEntry[]): string {
 }
 
 // Placeholder token for one arg in the run-example line:
-//   json   → `--stdin`  (JSON value binds via stdin)
+//   json   → `--json --stdin`  (structured input and output stay machine-safe)
 //   string → `"<name>"` (positional prose, quoted)
 // Non-required args wrap their token in `[ ]`.
 // Exported so the per-flow help screen and front door use the same invocation
-// shape. JSON arguments must arrive through --stdin.
+// shape. JSON arguments must arrive through --stdin. They also select JSON output:
+// a structured-input flow's useful result may not exist in the human summary, and
+// advertising `--stdin` alone would make the caller pay before discovering that.
 export function argToken(arg: { name: string; type: ArgInfo["type"]; required: boolean }): string {
   const token = match(arg.type)
-    .with("json", () => "--stdin")
+    .with("json", () => "--json --stdin")
     .otherwise(() => `"<${arg.name}>"`);
   return match(arg.required)
     .with(true, () => token)
@@ -297,19 +307,19 @@ export function argToken(arg: { name: string; type: ArgInfo["type"]; required: b
 
 // Invocation shaped from `entry.args`, e.g.
 //   navi run founder "<request>"
-//   navi run edge-walk --stdin
+//   navi run edge-walk --json --stdin
 //   navi run code-review ["<range>"]
 //   navi run <name>                     (no args)
-function runInvocation(entry: CatalogEntry): string {
+function runInvocation(entry: CatalogEntry, prefix: string = "navi"): string {
   const tokens = entry.args.map(argToken);
   return match(tokens)
-    .with([], () => `navi run ${entry.name}`)
-    .otherwise((ts) => `navi run ${entry.name} ${ts.join(" ")}`);
+    .with([], () => `${prefix} run ${entry.name}`)
+    .otherwise((ts) => `${prefix} run ${entry.name} ${ts.join(" ")}`);
 }
 
 // Indented example line for the full catalog render.
-function runExampleLine(entry: CatalogEntry): string {
-  return `    e.g. ${runInvocation(entry)}`;
+function runExampleLine(entry: CatalogEntry, prefix: string): string {
+  return `    e.g. ${runInvocation(entry, prefix)}`;
 }
 
 // `full` controls description truncation; `runExample` appends an indented
@@ -318,7 +328,7 @@ function runExampleLine(entry: CatalogEntry): string {
 function renderGroup(
   heading: string,
   rows: CatalogEntry[],
-  opts: { full: boolean; runExample: boolean },
+  opts: { full: boolean; runExample: boolean; prefix: string },
 ): string[] {
   return match(rows)
     .with([], () => [`${heading} (0): none`])
@@ -347,7 +357,7 @@ function renderGroup(
             })
             .exhaustive();
           const example = match(opts.runExample)
-            .with(true, () => [runExampleLine(r)])
+            .with(true, () => [runExampleLine(r, opts.prefix)])
             .with(false, () => [] as string[])
             .exhaustive();
           return [...body, ...example];
@@ -356,11 +366,11 @@ function renderGroup(
     });
 }
 
-export function renderCatalog(cat: Catalog): string {
+export function renderCatalog(cat: Catalog, prefix: string = "navi"): string {
   return [
-    ...renderGroup("skills", cat.skills, { full: false, runExample: false }),
+    ...renderGroup("skills", cat.skills, { full: false, runExample: false, prefix }),
     "",
-    ...renderGroup("flows", cat.workflows, { full: true, runExample: true }),
+    ...renderGroup("flows", cat.workflows, { full: true, runExample: true, prefix }),
   ].join("\n");
 }
 
@@ -380,8 +390,7 @@ function shortWhen(description: string): string {
 
 // True when the entry has exactly one required arg and that arg is a string
 // (type omitted ⇒ "string" in argsOf). Optional args may also exist; they do
-// not disqualify. Shared by the bare-query next-moves whisper and the COMPLETE
-// handoff renderer (cli resolveHandoff) — one predicate, two callers: only flows
+// not disqualify. The COMPLETE handoff renderer uses this to ensure only flows
 // that can actually bind a positional prose brief advertise a handoff command.
 export function isSingleRequiredString(entry: CatalogEntry): boolean {
   const required = entry.args.filter((a) => a.required);
@@ -390,48 +399,7 @@ export function isSingleRequiredString(entry: CatalogEntry): boolean {
     .otherwise(() => false);
 }
 
-// Catalog-derived copy-pasteable "same question, different lens" list for the
-// bare-query whisper footer. ONLY active workflows whose args are exactly one
-// required string arg (the pre-fillable set — data-driven, no flow names
-// hardcoded). Flows that need --stdin or a range (edge-walk, code-review,
-// pre-pr-review) are NOT next-moves for a just-asked question; the front door
-// still teaches them.
-//
-// With a non-empty queryText: label-first, two lines per flow so a human scans
-// labels then copies ONE command —
-//   <shortWhen>:
-//     navi run <name> '<query, shellQuoted>'
-// Without a query (non-query contexts): a single-line placeholder form
-//   navi run <name> "<arg>"  <shortWhen>
-export function nextMoves(basePath: string, queryText: string | undefined): string[] {
-  const workflows = buildCatalog(basePath)
-    .workflows.filter((w) => w.active)
-    .filter(isSingleRequiredString);
-  return match(queryText)
-    .with(
-      P.when((q): q is string => typeof q === "string" && q.length > 0),
-      (query) =>
-        workflows.flatMap((r) => {
-          const when = shortWhen(r.description);
-          // Label prefers the clause-capped when-text; name is the empty-desc fallback.
-          const label = match(when)
-            .with("", () => r.name)
-            .otherwise((w) => w);
-          return [`${label}:`, `  navi run ${r.name} ${shellQuote(query)}`];
-        }),
-    )
-    .otherwise(() =>
-      workflows.map((r) => {
-        const inv = runInvocation(r);
-        const when = shortWhen(r.description);
-        return match(when)
-          .with("", () => inv)
-          .otherwise((w) => `${inv}  ${w}`);
-      }),
-    );
-}
-
-export function flowMenu(basePath: string): string[] {
+export function flowMenu(basePath: string, prefix: string = "navi"): string[] {
   // Show only active entries; shadowed entries share their invocation name with
   // the winner and have no distinct command to advertise.
   const workflows = buildCatalog(basePath).workflows.filter((w) => w.active);
@@ -439,9 +407,9 @@ export function flowMenu(basePath: string): string[] {
     .with([], (): string[] => [])
     .otherwise((rows) => {
       // Pad on the full invocation (name + arg tokens) so the when-column lines up.
-      const invW = Math.max(...rows.map((r) => runInvocation(r).length));
+      const invW = Math.max(...rows.map((r) => runInvocation(r, prefix).length));
       return rows.map((r) => {
-        const inv = runInvocation(r).padEnd(invW);
+        const inv = runInvocation(r, prefix).padEnd(invW);
         const when = shortWhen(r.description);
         return match(when)
           .with("", () => `  ${inv}`)

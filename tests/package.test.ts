@@ -160,6 +160,12 @@ describe("npm package — the tarball is the product boundary", () => {
     expect(interop).not.toMatch(
       /Open one edge-walk session|navi run edge-walk --json --stdin -w/,
     );
+    expect(interop).toMatch(/Navi reviews semantic boundaries/);
+    expect(interop).toMatch(/If every disposition leads to the same\s+work, skip the call/);
+    expect(interop).toMatch(/Do not invoke Navi for an individual command/);
+    expect(interop).toMatch(/one check for the coherent\s+delivery claim/);
+    expect(interop).not.toMatch(/Open one check session after interpreting a nontrivial task/);
+    expect(interop).not.toMatch(/Ask which flow fits with `navi`/);
   });
 
   it("ships no development tree, private environment file, database, or lock", () => {

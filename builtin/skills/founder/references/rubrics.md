@@ -29,7 +29,12 @@ owns interpretation, judgment, wording, tool choice, and call order, unless
 the product explicitly contracts one of those. Deterministic code owns
 security, permissions, schema validation, persistence, pure computation,
 and explicit product state. The framework owns its own primitives. Prove
-the smallest useful outcome before building apparatus around it.
+the smallest useful outcome before building apparatus around it. A new
+declarative flow or genuinely distinct capability may compose existing
+machinery or establish one owner for a new responsibility; that is not
+duplication. When a responsibility already has an owner, evolve or replace
+that owner instead of creating a second live implementation. Names, version
+labels, directories, and entry points do not create distinct boundaries.
 
 **Check.** Map ownership before writing code. Start from the public
 behavior: what is the thinnest end-to-end proof that this works? Then, for
@@ -48,7 +53,12 @@ a measured latency, cost, or quality contract fails without it; "fewer tool
 rounds" is a hypothesis, not a contract. In AI work, try instructions, tool
 descriptions, simpler schemas, existing context, and native composition —
 including model-directed fan-out — before routing, retries, trace
-detectors, or parsers.
+detectors, or parsers. Judge ownership by responsibility, not artifact count.
+If implementations must overlap, treat the overlap as a migration: obtain
+explicit authorization from the responsible human and define the authority or
+routing rule for each stage, the target canonical owner, and a concrete
+retirement condition before both are live. Keep alternatives isolated from the
+live system until one is selected.
 
 **Violation.** Model judgment compiled down into heuristics that force one
 preferred trace. Tests and guards built before anything works, then
@@ -57,7 +67,10 @@ while the public behavior stays untried. A source scan reported as runtime
 evidence. Evidence from a nearby boundary standing in for the outcome that
 was claimed. A regression test that still passes when the behavior it names
 is removed. Wrappers, duplicate owners, or one-incident regexes kept with
-no current contract behind them.
+no current contract behind them. Two live engines, routers, parsers, state
+owners, or control paths own the same responsibility without an authorized,
+bounded migration. Copying machinery behind a new flow, command, directory, or
+version label does not make the responsibility new.
 
 ---
 
@@ -70,18 +83,24 @@ case for the change is real, it is visible in the artifact. When two judges
 disagree, settle it by tracing the disputed spot in source — never by
 re-asking until someone says yes. And every standing gate has to earn its
 runtime: track what it uniquely catches, and retire gates that never change
-an outcome.
+an outcome. A gate belongs at a semantic boundary where a plausible verdict
+can change the next action. Submit one coherent decision or deliverable; the
+judge informs the controller, it does not become the step-by-step controller.
 
 **Check.** Did the gate get the raw artifact and a neutral question, or the
 proposer's argument with "return GO only if…" attached? When judges split,
 was it resolved with evidence or with a stronger model? What has this gate
-uniquely caught lately, and at what cost in time and repairs?
+uniquely caught lately, and at what cost in time and repairs? Are files,
+phases, repairs, or ordinary evidence gathering being reviewed separately even
+though they belong to one unchanged premise? If every plausible disposition
+would lead to the same next action, why is there a gate?
 
 **Violation.** Acceptance criteria written by the party under review.
 Verdict shopping: reruns, model upgrades, or reworded prompts until GO. A
 judge reviewing the proposer's summary instead of the artifact. Two gates
-where one never disagrees with the other. A gate kept out of fear, with no
-recorded catch.
+where one never disagrees with the other. Per-edit approval, per-phase gates,
+or multiple lanes reviewing the same unchanged premise. A gate kept out of
+fear, with no recorded catch.
 
 ---
 
@@ -117,7 +136,9 @@ Doctrine is production: a prompt, skill, or rubric edit steers every future
 decision, so it gets at least the review a code change gets. Each system
 gets an explicit landing policy — direct push, PR, CI, human sign-off —
 decided once and written down. Inheriting whatever the first push did is
-drift, not policy.
+drift, not policy. For a pre-work judgment, blast radius and reversibility —
+not task size, file count, or phase — determine whether a gate is warranted.
+Routine reversible execution stays with the calling agent.
 
 **Check.** Is there a written landing policy, and does this change fit it?
 Does any validation run somewhere other than the author's machine? Is
@@ -257,16 +278,21 @@ Triage by familiarity instead of fire rate.
 ## 11. Precision scoping
 
 **Principle.** Do the named thing, then stop. When the lane narrows, narrow
-with it. The adjacent bigger problem is a trap; narrowing is a feature.
+with it. The adjacent bigger problem is a trap; narrowing is a feature. Scope
+review at the coherent decision or deliverable boundary, not at every
+transient action inside it; batching related evidence is precision, not scope
+creep.
 
 **Check.** Does the change do exactly what was asked and stop — or does it
 add extra config, a flag "for later," a speculative abstraction, a
-neighboring problem nobody asked about? Judge simplicity by what the design
-avoids.
+neighboring problem nobody asked about? Is one settled premise being split
+into file, phase, repair, or command-sized review claims? Judge simplicity by
+what the design avoids.
 
 **Violation.** Scope creep. Building the adjacent thing because it "looks
 useful." A field or flag for a future that has not arrived. Solving the
-general problem when the ask was specific.
+general problem when the ask was specific. Atomizing one coherent deliverable
+into a chain of micro-gates.
 
 ---
 
@@ -295,15 +321,18 @@ re-runs.
 
 ## 13. Review and reinforcement
 
-**Principle.** Passing once is not done. Put the thing under real
-pressure — challenge it, fork it, push until it stops improving — and treat
-that pressure as the work, not polish after the work.
+**Principle.** Put a coherent artifact under independent pressure in proportion
+to its risk. One pass is enough when the acceptance evidence holds and another
+pass would not change the decision. Re-run after a material artifact or premise
+change, or to close a concrete blocking finding — not after every transient
+repair. Pressure the work; do not turn the referee into the work.
 
-**Check.** Before calling it stable, did a distinct lens attack it, and did
-refinement run until it plateaued instead of stopping at first green? And
-once the evidence stopped changing, did the verdict stand — or did the
-judge get re-rolled, which is pressure on the referee, not the work?
+**Check.** Before calling consequential work stable, did a distinct lens attack
+the coherent artifact at its real boundary? Were related repairs batched before
+returning one evidence packet? Once the evidence and premise stopped changing,
+did the verdict stand — or did the judge get re-rolled?
 
-**Violation.** Calling it done after one clean pass. Treating review as
-ceremony to skip under time pressure. Stopping when it works instead of
-when it stops getting better.
+**Violation.** Skipping independent review where the blast radius warrants it.
+Returning to the judge after every edit or phase. Re-running an unchanged claim
+until the verdict changes. Treating a growing review loop as proof of rigor
+when it produces no decision-changing evidence.

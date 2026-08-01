@@ -20,7 +20,7 @@ npx --no-install navi-cli "Where is provider selection implemented?"
 | Search the repository explicitly | `code-search` | `npx --no-install navi-cli run code-search "<question>"` |
 | Review uncommitted work or a diff range | `code-review` | `npx --no-install navi-cli run code-review [range]` |
 | Check whether a branch is ready for a PR | `pre-pr-review` | `npx --no-install navi-cli run pre-pr-review [base]` |
-| Turn a half-formed idea into a concrete brief | `sharpen` | `npx --no-install navi-cli run sharpen "<turn>"` |
+| Expand, challenge, and harden candidate ideas | `brainstorm` | `npx --no-install navi-cli run brainstorm --json --stdin` |
 | Think through an open question | `founder-advice` | `npx --no-install navi-cli run founder-advice "<request>"` |
 | Judge a concrete decision or artifact | `founder` | `npx --no-install navi-cli run founder "<request>"` |
 | Challenge a completion claim | `edge-walk` | `npx --no-install navi-cli check "<claim and evidence>"` |
@@ -80,20 +80,31 @@ bounded, the result names files that were not reviewed line by line.
 
 ## Shape and judge decisions
 
-### `sharpen`
+### `brainstorm`
 
-Use `sharpen` before judgment when the idea is still vague. Each invocation
-asks one forcing question; continue with the session ID it prints.
+Use `brainstorm` when a calling agent faces consequential underdetermination:
+materially different viable ideas whose selection would change the outcome.
+One terminal run expands distinct candidates, challenges their strongest seams
+and edges, deliberates over real tradeoffs, converges on a leading synthesis,
+and hardens it into a falsifiable idea artifact with one exact next action.
+Do not use it for routine implementation choices or automatically chain its
+completed result into another review of the same premise.
 
 ```bash
-npx --no-install navi-cli run sharpen \
-  "I think Navi should support reusable policy packs."
+printf '%s\n' \
+  '{"event":{"task":"Explore reusable policy packs","ideas":["Package policies as declarative flows","Compile policies into one runtime owner"],"context":[],"constraints":["Do not create a second policy executor"]}}' \
+  | npx --no-install navi-cli run brainstorm --json --stdin
 ```
 
-It works across five dimensions: the real ask, evidence of the problem, the
-narrowest useful version, blast radius, and kill condition. It returns `ASK`
-until it can produce a concrete brief, then returns `READY` for handoff to
-Founder. `HUMAN` is reserved for a decision outside the agent dialogue.
+The JSON event is a machine-to-machine contract. `context` contains known facts
+and evidence; `constraints` contains non-negotiable boundaries. One supplied
+idea is valid, but two or more materially different ideas usually produce a
+better comparison. A demanding continuation adds `event.response_to` with the
+prior directive ID and requirement/value returns, then pipes that JSON to the
+exact `--json --stdin -t ...` command Navi returned. Each invocation is
+non-interactive and returns control; it never interviews a human, implements the
+idea, or creates planning/project state. Branch on the returned `gate`, not the
+process exit code.
 
 ### `founder-advice`
 

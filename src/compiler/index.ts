@@ -15,6 +15,7 @@ export type { Shape, ResolvedStep, LintFinding } from "./shape.ts";
 export { lintErrors } from "./shape.ts";
 export { compile, resolveStructuredObject, structuredOutputOptions } from "./compile.ts";
 export type { Compiled, Runtime } from "./compile.ts";
+export { validateWorkflowInput, workflowInputSchema } from "./input-schema.ts";
 
 // Built-in content is rooted at the installed package, never at the target
 // workspace selected by `-w`, so shipped workflows run against external repos.

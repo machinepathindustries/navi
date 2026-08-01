@@ -64,6 +64,13 @@ use `npx --no-install navi-cli` so every command runs the project-local version.
 | **Decide** | A product or design call needs judgment | `npx --no-install navi-cli run founder "Should retries be configurable?"` | `GO`, `REFINE`, or `REJECT` |
 | **Check** | You are about to call work done | `npx --no-install navi-cli check "Claim: retries are covered. Evidence: tests pass."` | A clear result or one concrete next action |
 
+Navi reviews boundaries, not every implementation step. For a clear task, make
+ordinary reversible choices and run the relevant tests without asking Navi to
+approve each file, phase, repair, or command. Use one consolidated Check when
+the coherent delivery is ready. Add a pre-work Brainstorm or Founder call only
+when its outcome could materially change the direction or authorize a
+consequential commitment.
+
 These are separate checks with one shared record. A session holds the question,
 result, follow-up evidence, and any recorded override.
 
@@ -95,7 +102,7 @@ Navi ships with eight:
 | `founder` | A decision needs a `GO`, `REFINE`, or `REJECT` verdict |
 | `founder-advice` | An open question needs options and a recommendation |
 | `edge-walk` | A completion claim needs an adversarial check |
-| `sharpen` | An idea is too vague to plan yet |
+| `brainstorm` | Consequentially different ideas need expansion, challenge, and convergence |
 | `web-search` | A question needs current web evidence through Tavily |
 
 Run `npx --no-install navi-cli catalog` for the installed inventory or

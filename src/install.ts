@@ -877,14 +877,22 @@ export function renderInstall(plan: InstallPlan, to: string): string {
     .exhaustive();
   const removal = match(to === process.cwd())
     .with(true, () => `${shellQuote(plan.launcherTarget)} uninstall`)
-    .with(false, () => `${shellQuote(plan.launcherTarget)} uninstall -w ${shellQuote(to)}`)
+    .with(false, () => `${shellQuote(plan.launcherTarget)} uninstall -w ${shellQuote(plan.projectRoot)}`)
     .exhaustive();
+  const workspace = match(to === process.cwd())
+    .with(true, () => "")
+    .with(false, () => ` -w ${shellQuote(plan.projectRoot)}`)
+    .exhaustive();
+  const launcher = shellQuote(plan.launcherTarget);
   return [
     `navi: ${verb}`,
     `  ${plan.target}`,
     `  ${plan.launcherTarget}`,
+    `  ownership receipt: ${plan.receiptPath}`,
     ``,
-    `Run Navi in this project with: ${shellQuote(plan.launcherTarget)}`,
+    `Run Navi in this project with: ${launcher}${workspace}`,
+    `Discover the available flows with: ${launcher} catalog${workspace}`,
+    `Learn the Brainstorm contract with: ${launcher} help brainstorm${workspace}`,
     `Remove both links with: ${removal}`,
   ].join("\n");
 }

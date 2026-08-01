@@ -57,6 +57,7 @@ import {
   lintErrors,
   shapeSummary,
   structuredOutputOptions,
+  validateWorkflowInput,
   type Shape,
 } from "./compiler/index.ts";
 import { COMMAND_OUTPUT } from "./compiler/output-schema.ts";
@@ -87,7 +88,7 @@ import {
   GroundingGradeSchema,
 } from "./search/grader-instructions.ts";
 import { renderGroundingStage, runGroundingStage } from "./search/grounding-stage.ts";
-import { buildCatalog, renderCatalog, flowMenu, nextMoves, isSingleRequiredString, argToken } from "./catalog.ts";
+import { buildCatalog, renderCatalog, flowMenu, isSingleRequiredString, argToken } from "./catalog.ts";
 import { deepHandoffCommand, invocationPrefix, shellQuote } from "./invocation.ts";
 import {
   listSessions,
@@ -869,14 +870,10 @@ async function bareQuery(query: string, flags: Flags): Promise<never> {
   // a source checkout); -w keeps the SAME workspace and -t keeps the SAME session;
   // shellQuote keeps spaced/meta values pasteable into /bin/sh as one argument.
   const deepCmd = deepHandoffCommand(query, thread, flags.workspace);
-  // Catalog-derived "same question, different lens" list. INFORMATIONAL only —
-  // never a handed command. The ⚠ branch's `${deepCmd}` stays THE ONLY handed
-  // command; the pass branch still contains NO --deep command.
-  const movesBlock = [
-    "",
-    "  same question, different lens — copy one:",
-    ...nextMoves(basePath, query).map((l) => `    ${l}`),
-  ].join("\n");
+  // The grade owns one next action: either accept the grounded answer or run the
+  // exact deep continuation. Advertising a menu of fresh model calls here asks
+  // callers to reroll an unchanged premise and conflicts with invocation economy.
+  const movesBlock = "";
   // A runnable `--deep` command appears only when the grounding result asks for it,
   // so an interop harness never escalates a passing quick answer.
   const groundingOutput = renderGroundingStage(groundingStage, deepCmd, movesBlock);
@@ -1008,7 +1005,7 @@ async function runVerb(
       ),
     )
     .exhaustive();
-  const inputData = (await inputResult).match(
+  const inputData = (await inputResult).andThen((bound) => validateWorkflowInput(shape, bound)).match(
     (v) => v,
     (e) => fail(`navi run: ${e}\n`, 4),
   );
@@ -1756,7 +1753,7 @@ async function catalogVerb(flags: Flags): Promise<never> {
   process.stdout.write(
     match(flags.json)
       .with(true, () => `${JSON.stringify(cat, null, 2)}\n`)
-      .with(false, () => `${renderCatalog(cat)}\n`)
+      .with(false, () => `${renderCatalog(cat, invocationPrefix())}\n`)
       .exhaustive(),
   );
   process.exit(0);
@@ -2335,10 +2332,11 @@ function listBit(name: string, values: string[]): string {
 // Built from the resolved shape so a PATH token works and arg descriptions survive.
 function flowHelp(shape: Shape, token: string, basePath: string): string {
   const tty = process.stdout.isTTY === true;
-  // argToken, not a local rebuild: a json-typed arg is bound with --stdin, never
-  // positionally, and printing `<input>` here handed the reader a command the CLI
-  // rejects eight lines below on the very same screen.
-  const invocation = [`navi run ${token}`, ...shape.args.map(argToken)].join(" ");
+  const prefix = invocationPrefix();
+  // argToken, not a local rebuild: a json-typed arg uses machine-readable output
+  // and stdin binding, never a positional placeholder. Printing `<input>` here
+  // handed the reader a command the CLI rejects on this same screen.
+  const invocation = [`${prefix} run ${shellQuote(token)}`, ...shape.args.map(argToken)].join(" ");
   const argW = Math.max(0, ...shape.args.map((a) => a.name.length));
   const argLines = shape.args.map((a) => {
     const req = match(a.required)
@@ -2348,7 +2346,7 @@ function flowHelp(shape: Shape, token: string, basePath: string): string {
       .with(P.nullish, () => "")
       .otherwise((d) => `  (default: ${String(d)})`);
     const stdin = match(a.type)
-      .with("json", () => "  — bind with --stdin")
+      .with("json", () => "  — bind with --json --stdin")
       .otherwise(() => "");
     return [
       `  ${a.name.padEnd(argW)}  ${req}${dflt}${stdin}`,
@@ -2378,7 +2376,7 @@ function flowHelp(shape: Shape, token: string, basePath: string): string {
     rule(""),
     ...tierLine,
     `  default model: ${shape.defaultModel}`,
-    `  full plan (no model call): navi run ${token} --shape`,
+    `  full plan (no model call): ${prefix} run ${shellQuote(token)} --shape`,
   ].join("\n");
 }
 
@@ -2412,11 +2410,12 @@ function uninstallVerb(flags: Flags): never {
 
 function frontDoor(basePath: string = process.cwd()): string {
   const tty = process.stdout.isTTY === true;
-  const q = 'navi "<question>"';
-  const check = 'navi check "<claim>"';
-  const run = "navi run <name>";
-  const sessions = "navi session list";
-  const story = "navi story <id>";
+  const prefix = invocationPrefix();
+  const q = `${prefix} "<question>"`;
+  const check = `${prefix} check "<claim>"`;
+  const run = `${prefix} run <name>`;
+  const sessions = `${prefix} session list`;
+  const story = `${prefix} story <id>`;
   const cmdW = Math.max(q.length, check.length, run.length, sessions.length, story.length);
   // Accent the `navi run …` invocation on each flow-menu line; pad spaces and
   // the when-clause stay plain so columns still line up under ANSI.
@@ -2439,10 +2438,11 @@ function frontDoor(basePath: string = process.cwd()): string {
     `  ${accent(story, tty)}${" ".repeat(cmdW - story.length)}  how a session got where it is`,
     "",
     rule("flows · when to reach for each"),
-    ...flowMenu(basePath).map(accentFlowLine),
+    ...flowMenu(basePath, prefix).map(accentFlowLine),
     "",
     rule(""),
-    "  full when-to-use + arg details: navi catalog",
+    `  full flow descriptions + commands: ${prefix} catalog`,
+    `  one flow's exact argument contract: ${prefix} help <flow>`,
     "Run one — each command ends with your next moves.",
   ].join("\n");
 }

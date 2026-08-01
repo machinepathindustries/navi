@@ -95,12 +95,12 @@ command -v navi-cli >/dev/null \
   || bad "navi-cli npm bin target is $(readlink "$NAVI_CLI" 2>/dev/null || printf missing)"
 [ -f "$PACKAGE/builtin/workflows/edge-walk/judge.schema.ts" ] \
   && [ -f "$PACKAGE/builtin/workflows/founder/verdict.schema.ts" ] \
-  && [ -f "$PACKAGE/builtin/workflows/sharpen/parse-sharpen.mjs" ] \
+  && [ -f "$PACKAGE/builtin/workflows/brainstorm/result.schema.ts" ] \
   && [ -f "$PACKAGE/agent/skills/navi-interop/SKILL.md" ] \
   && [ -f "$PACKAGE/config/tested-models.json" ] \
   && [ -f "$PACKAGE/.env.example" ] \
   && [ -x "$PACKAGE/bin/navi-local" ] \
-  && ok "runtime builtins, schemas, parser, model ground truth, env template, interop skill, and local launcher shipped" \
+  && ok "runtime builtins, schemas, model ground truth, env template, interop skill, and local launcher shipped" \
   || bad "the tarball omitted a runtime artifact"
 [ ! -e "$APP/node_modules/.bin/vitest" ] \
   && [ ! -e "$APP/node_modules/.bin/mastra" ] \
@@ -145,14 +145,14 @@ package_unchanged "--ephemeral"
 say "2 · installed, model-free CLI surfaces work"
 OUT=$(cd "$PROBE" && "${KEYLESS[@]}" "$NAVI" --version 2>&1)
 RC=$?
-[ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.1$' <<<"$OUT" \
+[ "$RC" -eq 0 ] && grep -q '^navi 0\.2\.0$' <<<"$OUT" \
   && ok "version" \
   || bad "version failed (rc=$RC): $(head -1 <<<"$OUT")"
 package_unchanged "version"
 
 OUT=$(cd "$PROBE" && "${KEYLESS[@]}" "$NAVI_CLI" --version 2>&1)
 RC=$?
-[ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.1$' <<<"$OUT" \
+[ "$RC" -eq 0 ] && grep -q '^navi 0\.2\.0$' <<<"$OUT" \
   && ok "navi-cli version" \
   || bad "navi-cli version failed (rc=$RC): $(head -1 <<<"$OUT")"
 package_unchanged "navi-cli version"
@@ -450,7 +450,7 @@ OUT=$(cd "$MANAGED" && "${KEYLESS[@]}" \
   npm exec --offline --package=@machinepath/navi -- \
   navi-cli --version 2>&1)
 RC=$?
-[ "$RC" -eq 0 ] && grep -q '^navi 0\.1\.1$' <<<"$OUT" \
+[ "$RC" -eq 0 ] && grep -q '^navi 0\.2\.0$' <<<"$OUT" \
   && ok "scoped offline npm exec runs from the managed-skill setup" \
   || bad "managed-skill launcher fallback failed (rc=$RC)"
 

@@ -21,6 +21,7 @@ import { resolvePoppedSkills } from "../mastra/pop-skills.ts";
 import { sessionStateContextFilter } from "../mastra/session-state-context-filter.ts";
 import { errStr } from "../err.ts";
 import { zodIssues } from "../contracts/whisper.ts";
+import { workflowInputSchema } from "./input-schema.ts";
 
 // Shape → a committed Mastra Workflow and the Agents its steps drive.
 // Each step maps 1:1 to a Mastra step; sequencing
@@ -88,7 +89,7 @@ export async function compile(
     const wf = createWorkflow({
       id: shape.name,
       description: shape.description,
-      inputSchema: argsSchema(shape),
+      inputSchema: workflowInputSchema(shape),
       outputSchema: z.unknown(),
     }) as {
       then: (step: ReturnType<typeof createStep>) => typeof wf;
@@ -487,24 +488,7 @@ function runCommand(command: string, actionDir: string, stdin?: string): ResultA
   );
 }
 
-// --- schemas / conditions ---
-
-function argsSchema(shape: Shape): z.ZodTypeAny {
-  const fields: Record<string, z.ZodTypeAny> = {};
-  for (const a of shape.args) {
-    // A `json` arg binds the whole stdin JSON value. z.unknown() lets Mastra
-    // accept objects instead of coercing the workflow input to a string.
-    // The token never enforces z.object() — a workflow's own usage carries shape.
-    const base = match(a.type)
-      .with("json", () => z.unknown())
-      .with("string", () => z.string())
-      .exhaustive();
-    fields[a.name] = match<boolean, z.ZodTypeAny>(a.required)
-      .with(true, () => base)
-      .otherwise(() => base.optional());
-  }
-  return z.object(fields).passthrough();
-}
+// --- conditions ---
 
 function priorSlice(shape: Shape, rs: ResolvedStep): string[] {
   const idx = shape.steps.findIndex((s) => s.name === rs.name);
