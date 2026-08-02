@@ -34,10 +34,10 @@ export type ModelSettings = {
   reasoningEffort?: ReasoningEffort | undefined;
 };
 
-// The managed baseline applies only to the two reference DeepSeek models.
-// v4-flash and v4-pro share temperature 0 and
-// thinking explicitly enabled. chat/reasoner and every non-deepseek model get no
-// Navi-managed defaults.
+// The managed baseline applies only to Navi's reference DeepSeek targets.
+// Flash is the product foundation: thinking is explicit and effort is max unless
+// a task/caller deliberately chooses a cheaper lane. chat/reasoner and every
+// non-deepseek model get no Navi-managed defaults.
 const MANAGED_DEFAULT_MODELS = new Set([DEFAULT_MODEL, DEFAULT_WORKFLOW_MODEL]);
 
 export function isDeepseek(model: string): boolean {
@@ -45,8 +45,11 @@ export function isDeepseek(model: string): boolean {
 }
 
 function managedDefaults(model: string): ModelSettings {
-  return match(MANAGED_DEFAULT_MODELS.has(model))
-    .with(true, (): ModelSettings => ({ temperature: 0, thinking: "enabled" }))
+  return match(MANAGED_DEFAULT_MODELS.has(model) && isDeepseek(model))
+    .with(
+      true,
+      (): ModelSettings => ({ temperature: 0, thinking: "enabled", reasoningEffort: "max" }),
+    )
     .with(false, (): ModelSettings => ({}))
     .exhaustive();
 }
@@ -66,8 +69,21 @@ const definedOnly = <T extends object>(o: T): { [K in keyof T]?: Exclude<T[K], u
 // per-step / per-invocation overrides (overrides always win). Only DEFINED
 // override keys layer: "flag not passed" must never out-rank the baseline, and a
 // plain spread cannot express that (an explicit `undefined` deletes the key).
+// Thinking-off without an authored effort is the mechanical lane: normalize it
+// to low so the Flash/max baseline cannot survive as a contradictory stale field.
+// An explicitly authored effort still wins unchanged.
 export function resolveSettings(model: string, overrides: ModelSettings = {}): ModelSettings {
-  return { ...managedDefaults(model), ...definedOnly(overrides) };
+  const explicit = definedOnly(overrides);
+  const normalized = match({
+    thinking: explicit.thinking,
+    hasExplicitEffort: explicit.reasoningEffort !== undefined,
+  })
+    .with({ thinking: "disabled", hasExplicitEffort: false }, () => ({
+      ...explicit,
+      reasoningEffort: "low" as const,
+    }))
+    .otherwise(() => explicit);
+  return { ...managedDefaults(model), ...normalized };
 }
 
 // The Mastra-facing fragment: what gets spread into `Agent({defaultOptions})` or

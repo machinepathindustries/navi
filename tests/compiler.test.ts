@@ -694,11 +694,15 @@ steps:
 // and maps onto Mastra's two surfaces; deepseek-native options on a non-deepseek
 // model are a loud lint error, never a silent drop.
 describe("compiler — per-step model settings + the non-deepseek lint", () => {
-  it("resolveSettings applies the managed baseline for v4-flash/v4-pro and lets overrides win", () => {
+  it("resolveSettings applies the Flash/max baseline and lets overrides win", () => {
     const unlistedDeepSeekModel = ["deepseek", "unlisted-model"].join("/");
-    // the two reference models share the conservative baseline.
-    expect(resolveSettings("deepseek/deepseek-v4-flash")).toEqual({ temperature: 0, thinking: "enabled" });
-    expect(resolveSettings("deepseek/deepseek-v4-pro")).toEqual({ temperature: 0, thinking: "enabled" });
+    expect(resolveSettings("deepseek/deepseek-v4-flash")).toEqual({
+      temperature: 0,
+      thinking: "enabled",
+      reasoningEffort: "max",
+    });
+    // Pro remains selectable, but it is not Navi's managed foundation.
+    expect(resolveSettings("deepseek/deepseek-v4-pro")).toEqual({});
     // Unlisted DeepSeek variants and non-DeepSeek models get NO managed defaults.
     expect(resolveSettings(unlistedDeepSeekModel)).toEqual({});
     expect(resolveSettings("anthropic/claude-x")).toEqual({});
@@ -708,14 +712,39 @@ describe("compiler — per-step model settings + the non-deepseek lint", () => {
       thinking: "enabled",
       reasoningEffort: "high",
     });
+    // A disabled-only override is mechanical and must displace inherited max;
+    // an explicitly authored effort remains authoritative.
+    expect(resolveSettings("deepseek/deepseek-v4-flash", { thinking: "disabled" })).toEqual({
+      temperature: 0,
+      thinking: "disabled",
+      reasoningEffort: "low",
+    });
+    expect(
+      resolveSettings("deepseek/deepseek-v4-flash", {
+        thinking: "disabled",
+        reasoningEffort: "high",
+      }),
+    ).toEqual({ temperature: 0, thinking: "disabled", reasoningEffort: "high" });
   });
 
   it("toMastraOptions routes temperature → modelSettings and thinking/effort → deepseek providerOptions", () => {
     expect(
-      toMastraOptions("deepseek/deepseek-v4-flash", { temperature: 0, thinking: "disabled", reasoningEffort: "max" }),
+      toMastraOptions("deepseek/deepseek-v4-flash", resolveSettings("deepseek/deepseek-v4-flash")),
     ).toEqual({
       modelSettings: { temperature: 0 },
-      providerOptions: { deepseek: { thinking: { type: "disabled" }, reasoningEffort: "max" } },
+      providerOptions: { deepseek: { thinking: { type: "enabled" }, reasoningEffort: "max" } },
+    });
+    expect(
+      toMastraOptions(
+        "deepseek/deepseek-v4-flash",
+        resolveSettings("deepseek/deepseek-v4-flash", {
+          thinking: "disabled",
+          reasoningEffort: "low",
+        }),
+      ),
+    ).toEqual({
+      modelSettings: { temperature: 0 },
+      providerOptions: { deepseek: { thinking: { type: "disabled" }, reasoningEffort: "low" } },
     });
     // a non-deepseek model never gets a fabricated deepseek namespace (the lint
     // upstream is what catches author intent; this only refuses to invent one).
@@ -734,8 +763,12 @@ steps:
     type: agent
     prompt: hi
 `);
-    // default model is the reference v4-flash → temperature 0 + thinking enabled.
-    expect(shape.steps[0]!.settings).toEqual({ temperature: 0, thinking: "enabled" });
+    // default model is Flash/max.
+    expect(shape.steps[0]!.settings).toEqual({
+      temperature: 0,
+      thinking: "enabled",
+      reasoningEffort: "max",
+    });
     expect(lintErrors(shape)).toHaveLength(0);
   });
 

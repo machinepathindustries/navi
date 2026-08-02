@@ -26,7 +26,7 @@
       "router_prefix": "deepseek/",
       "models": {
         "quick": "deepseek/deepseek-v4-flash",
-        "workflow": "deepseek/deepseek-v4-pro"
+        "workflow": "deepseek/deepseek-v4-flash"
       },
       "catalog_url": "https://api-docs.deepseek.com/api/list-models",
       "model_urls": {

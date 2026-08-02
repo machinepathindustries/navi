@@ -533,7 +533,7 @@ describe("provider compatibility harness — no paid calls", () => {
           env: keylessEnv({
             HOME: TEMP,
             NAVI_DB: `file:${join(TEMP, `${flow}-deepseek.db`)}`,
-            NAVI_MODEL: "deepseek/deepseek-v4-pro",
+            NAVI_MODEL: "deepseek/deepseek-v4-flash",
           }),
           encoding: "utf8",
         },
@@ -545,7 +545,9 @@ describe("provider compatibility harness — no paid calls", () => {
           .filter((step: { type: string }) => step.type === "agent")
           .every(
             (step: { settings: Record<string, unknown> }) =>
-              step.settings.temperature === 0 && step.settings.thinking === "enabled",
+              step.settings.temperature === 0 &&
+              step.settings.thinking === "enabled" &&
+              step.settings.reasoningEffort === "max",
           ),
       ).toBe(true);
     }

@@ -135,6 +135,12 @@ underlying AI SDK provider adapter. Navi does not maintain a model allowlist.
 export NAVI_MODEL="deepseek/deepseek-v4-flash"
 ```
 
+DeepSeek Flash is Navi's default foundation. Model-backed flows and deep
+repository reads use thinking with `reasoningEffort: max`; the one-pass quick
+query lane deliberately uses `high`, and its mechanical grounding grader turns
+thinking off. On DeepSeek, `--thinking` and `--reasoning-effort` can override a
+particular bare query or workflow run.
+
 [Providers](https://machine-path.mintlify.site/providers) lists the tested
 direct-provider targets and keys. The machine-readable source of truth is
 [`config/tested-models.json`](config/tested-models.json).

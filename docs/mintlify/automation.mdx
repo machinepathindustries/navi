@@ -151,9 +151,10 @@ Provider authentication uses the provider's key:
 `TAVILY_API_KEY` enables the `web-search` flow. See [Providers](/providers) for
 the tested models and compatibility lanes.
 
-## Tune a deep repository search
+## Tune DeepSeek reasoning
 
-Set these flags when you run the deep bare-query lane:
+Reasoning flags apply to both bare queries and `navi run` workflows. The step
+budget remains specific to the deep bare-query lane:
 
 | Flag | Accepted values |
 |---|---|
@@ -161,5 +162,8 @@ Set these flags when you run the deep bare-query lane:
 | `--thinking <mode>` | `adaptive`, `enabled`, `disabled` |
 | `--reasoning-effort <level>` | `low`, `medium`, `high`, `xhigh`, `max` |
 
-Thinking and reasoning-effort overrides are DeepSeek-only. Flow authors set
-equivalent step-local settings in `action.yaml`.
+DeepSeek Flash defaults to thinking enabled with `max` effort. The one-pass
+quick query lane deliberately uses `high`; its mechanical grounding grader uses
+thinking disabled. Explicit flags win for that invocation and are visible in
+`run <flow> --shape --json`. They are DeepSeek-only. Flow authors can also set
+step-local defaults in `action.yaml`.

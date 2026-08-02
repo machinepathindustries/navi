@@ -25,7 +25,7 @@ that use tools or structured results.
 
 | Lab | API key | Quick target | Workflow target |
 |---|---|---|---|
-| [DeepSeek](https://api-docs.deepseek.com/api/list-models) | `DEEPSEEK_API_KEY` | [`deepseek/deepseek-v4-flash`](https://api-docs.deepseek.com/api/list-models) | [`deepseek/deepseek-v4-pro`](https://api-docs.deepseek.com/api/list-models) |
+| [DeepSeek](https://api-docs.deepseek.com/api/list-models) | `DEEPSEEK_API_KEY` | [`deepseek/deepseek-v4-flash`](https://api-docs.deepseek.com/api/list-models) | [`deepseek/deepseek-v4-flash`](https://api-docs.deepseek.com/api/list-models) |
 | [OpenAI](https://developers.openai.com/api/docs/models) | `OPENAI_API_KEY` | [`openai/gpt-5.6-luna`](https://developers.openai.com/api/docs/models/gpt-5.6-luna) | [`openai/gpt-5.6-terra`](https://developers.openai.com/api/docs/models/gpt-5.6-terra) |
 | [Anthropic](https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5) | `ANTHROPIC_API_KEY` | [`anthropic/claude-sonnet-5`](https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5) | [`anthropic/claude-sonnet-5`](https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5) |
 | [Google](https://ai.google.dev/gemini-api/docs/models) | `GOOGLE_GENERATIVE_AI_API_KEY` | [`google/gemini-3.5-flash-lite`](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite) | [`google/gemini-3.5-flash-lite`](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite) |
@@ -39,11 +39,16 @@ export NAVI_MODEL="deepseek/deepseek-v4-flash"
 npx --no-install navi-cli "Where is retry behavior configured?"
 ```
 
-To use another direct provider, set the API key and quick target from the same
-row. Use the workflow target when you want the tested selection for a flow:
+DeepSeek Flash is also Navi's tested workflow target. It runs at max reasoning
+effort for model-backed flows and deep repository reads; only the quick
+single-pass query lane lowers it to high, while the mechanical grounding grader
+disables thinking.
+
+To use another direct provider, set the API key and target from the same row:
 
 ```bash
-export NAVI_MODEL="deepseek/deepseek-v4-pro"
+export OPENAI_API_KEY="..."
+export NAVI_MODEL="openai/gpt-5.6-terra"
 npx --no-install navi-cli run founder "Should this change ship?"
 ```
 

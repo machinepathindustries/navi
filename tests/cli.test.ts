@@ -66,6 +66,125 @@ describe("navi CLI — no-model paths + exit map", () => {
     expect(plan.name).toBe("hello-two-step");
   });
 
+  it("DeepSeek flows resolve to Flash/max and run-level effort overrides are visible in --shape", () => {
+    const baseline = navi(["run", "founder", "--shape", "--json", "--progress", "off"]);
+    expect(baseline.code).toBe(0);
+    const baselineStep = JSON.parse(baseline.stdout).steps[0] as {
+      model: string;
+      settings: Record<string, unknown>;
+    };
+    expect(baselineStep.model).toBe("deepseek/deepseek-v4-flash");
+    expect(baselineStep.settings).toMatchObject({
+      thinking: "enabled",
+      reasoningEffort: "max",
+    });
+
+    const high = navi([
+      "run",
+      "founder",
+      "--shape",
+      "--json",
+      "--reasoning-effort",
+      "high",
+    ]);
+    expect(high.code).toBe(0);
+    expect(JSON.parse(high.stdout).steps[0].settings.reasoningEffort).toBe("high");
+
+    const disabled = navi([
+      "run",
+      "brainstorm",
+      "--shape",
+      "--json",
+      "--thinking",
+      "disabled",
+    ]);
+    expect(disabled.code).toBe(0);
+    expect(JSON.parse(disabled.stdout).steps[0].settings).toMatchObject({
+      thinking: "disabled",
+      reasoningEffort: "low",
+    });
+  });
+
+  it("run-level DeepSeek tuning fails loudly for another provider", () => {
+    const r = spawnSync(
+      TSX,
+      [CLI, "run", "founder", "--shape", "--json", "--reasoning-effort", "max"],
+      {
+        cwd: ROOT,
+        encoding: "utf8",
+        env: { ...TEST_ENV, NAVI_MODEL: "anthropic/claude-sonnet-5" },
+      },
+    );
+    expect(r.status).toBe(1);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toMatch(/DeepSeek-only.*step "judge" uses "anthropic\/claude-sonnet-5"/);
+  });
+
+  it("reasoning controls reject contradictory or model-free uses instead of disappearing", () => {
+    const contradictory = navi([
+      "run",
+      "founder",
+      "--shape",
+      "--thinking",
+      "disabled",
+      "--reasoning-effort",
+      "max",
+    ]);
+    expect(contradictory.code).toBe(1);
+    expect(contradictory.stderr).toMatch(/cannot be combined with --thinking disabled/);
+
+    const commandOnly = navi([
+      "run",
+      "tests/fixtures/echo-command/action.yaml",
+      "--shape",
+      "--reasoning-effort",
+      "high",
+    ]);
+    expect(commandOnly.code).toBe(1);
+    expect(commandOnly.stderr).toMatch(/require a workflow with an agent step/);
+  });
+
+  it("normalizes disabled-only YAML to low through the real --shape boundary while preserving explicit effort", () => {
+    const dir = mkdtempSync(join(tmpdir(), "navi-reasoning-yaml-"));
+    const action = join(dir, "action.yaml");
+    try {
+      writeFileSync(
+        action,
+        `name: reasoning-yaml
+description: Model-free shape fixture for YAML reasoning policy.
+steps:
+  - name: automatic
+    type: agent
+    prompt: hi
+    settings:
+      thinking: disabled
+  - name: explicit
+    type: agent
+    prompt: hi
+    settings:
+      thinking: disabled
+      reasoningEffort: high
+`,
+      );
+      const r = navi(["run", action, "--shape", "--json", "--progress", "off"]);
+      expect(r.code).toBe(0);
+      const steps = JSON.parse(r.stdout).steps as Array<{
+        name: string;
+        settings: Record<string, unknown>;
+      }>;
+      expect(steps.find(({ name }) => name === "automatic")?.settings).toMatchObject({
+        thinking: "disabled",
+        reasoningEffort: "low",
+      });
+      expect(steps.find(({ name }) => name === "explicit")?.settings).toMatchObject({
+        thinking: "disabled",
+        reasoningEffort: "high",
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("an unknown workflow is a load failure → exit 1", () => {
     expect(navi(["run", "no-such-workflow"]).code).toBe(1);
   });
@@ -247,6 +366,10 @@ describe("navi CLI — bare-query tuning flags validate before the model call", 
     const e = navi(["q", "--reasoning-effort", "extreme"]);
     expect(e.code).toBe(1);
     expect(e.stderr).toMatch(/--reasoning-effort must be low\|medium\|high\|xhigh\|max/);
+
+    const run = navi(["run", "founder", "--shape", "--reasoning-effort", "extreme"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toMatch(/--reasoning-effort must be low\|medium\|high\|xhigh\|max/);
   });
 
   // Help is a deterministic CLI surface and must never spend a model call.

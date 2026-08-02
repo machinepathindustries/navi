@@ -65,6 +65,12 @@ they do not support parentheses or arbitrary code.
 `thinking` accepts `adaptive`, `enabled`, or `disabled`.
 `reasoningEffort` accepts `low`, `medium`, `high`, `xhigh`, or `max`. Those
 settings are DeepSeek-only; another provider makes them a compile error.
+Navi's managed DeepSeek Flash baseline is thinking enabled at max effort. A
+step-local setting overrides that baseline; run-level `--thinking` and
+`--reasoning-effort` flags override it for one invocation.
+When a step sets `thinking: disabled` without an effort, Navi resolves its
+effective effort to `low` so the inherited max value cannot survive. An effort
+explicitly authored in the same step remains authoritative.
 
 ### Workspace tools
 

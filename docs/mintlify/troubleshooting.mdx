@@ -61,20 +61,19 @@ printf '%s\n' "$NAVI_MODEL"
 
 ## Remove incompatible DeepSeek-only settings
 
-Navi reports either `--thinking/--reasoning-effort are DeepSeek-only` for a
-bare query or `settings.thinking/reasoningEffort are DeepSeek-only` for a flow.
-The command selected another provider while keeping DeepSeek-native settings.
-For a bare query, remove those flags or select a DeepSeek model. For a
-project-owned flow, either select DeepSeek or remove the static settings after
-inspecting the resolved plan:
+Navi reports `--thinking/--reasoning-effort are DeepSeek-only` when a bare query
+or workflow run selected another provider while carrying runtime DeepSeek
+controls. Remove those flags or select a DeepSeek model. A project-owned flow
+can also fail on static `settings.thinking/reasoningEffort`; either select
+DeepSeek or remove those settings after inspecting the resolved plan:
 
 ```bash
 npx --no-install navi-cli run <flow> --shape --json
 ```
 
-Navi's built-in flows do not require those static settings. DeepSeek's managed
-model defaults still enable its native reasoning mode when you select a
-DeepSeek model.
+Navi's built-in flows do not duplicate static provider settings. The managed
+DeepSeek Flash baseline enables thinking at max effort; another provider keeps
+its native defaults.
 
 ## Resolve `not an exact navi-owned link`
 
