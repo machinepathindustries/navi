@@ -1,6 +1,6 @@
 {
   "name": "@machinepath/navi",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A second reader for your coding agent: cited repo answers, reusable flows, and durable gates.",
   "type": "module",
   "repository": {
