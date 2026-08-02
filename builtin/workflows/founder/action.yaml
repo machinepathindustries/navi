@@ -33,11 +33,10 @@ steps:
     tools: [view, search_content, find_files, mastra_workspace_file_stat]
     skills:
       only: [founder]
-    # No step-local reasoningEffort: the flow must run on every provider navi
-    # supports. The managed DeepSeek v4 defaults still apply centrally through
-    # src/mastra/model-settings.ts (temperature 0 + thinking enabled); other
-    # providers keep their native defaults instead of receiving a DeepSeek-only
-    # option.
+    # No provider-specific setting is duplicated here: the flow must run on every
+    # provider Navi supports. The managed DeepSeek Flash baseline applies max
+    # effort centrally through src/mastra/model-settings.ts; other providers keep
+    # their native defaults. A run-level reasoning flag may deliberately lower it.
     prompt: |
       You are giving founder judgment. Your doctrine and rubrics are loaded in
       your instructions above — apply them. Lead with the decision, not the

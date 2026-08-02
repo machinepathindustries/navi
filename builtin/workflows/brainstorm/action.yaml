@@ -30,6 +30,9 @@ args:
       COMPLETE closes the session. Materially changed later evidence starts a fresh session and names the prior conclusion plus the new evidence in context.
 
 steps:
+  # The managed DeepSeek Flash baseline supplies max effort. Keep that policy in
+  # the central model-settings owner so Brainstorm remains provider-portable and
+  # a caller can deliberately lower effort with the run-level CLI flag.
   - name: arc
     type: agent
     tools: [view, search_content, find_files, mastra_workspace_file_stat]

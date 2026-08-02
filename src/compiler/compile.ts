@@ -182,10 +182,11 @@ async function buildStep(
           inputProcessors: [sessionStateContextFilter()],
           // Model settings from the one shared owner (model-settings.ts), so a bare
           // query and a workflow step behave identically on the same model: the
-          // managed baseline for v4-flash/v4-pro (temperature 0 + thinking enabled)
-          // overlaid with this step's `settings:` overrides, mapped onto Mastra's
-          // modelSettings + deepseek providerOptions surfaces. A non-deepseek model
-          // carrying deepseek-native options was already refused at lint (shape.ts).
+          // managed baseline for Navi's reference DeepSeek Flash target
+          // (temperature 0 + thinking enabled + max effort), overlaid with this
+          // step's `settings:` overrides and mapped onto Mastra's modelSettings +
+          // deepseek providerOptions surfaces. A non-deepseek model carrying
+          // deepseek-native options was already refused at lint (shape.ts).
           defaultOptions: {
             maxSteps: rs.maxSteps,
             // Keep parallel tool capacity explicit rather than depending on

@@ -71,6 +71,7 @@ import {
   THINKING_MODES,
   REASONING_EFFORTS,
   type MastraModelOptions,
+  type ModelSettings,
   type ReasoningEffort,
   type ThinkingMode,
 } from "./mastra/model-settings.ts";
@@ -144,9 +145,9 @@ const writeStdout = (text: string): Promise<void> =>
 
 // --- arg parsing -----------------------------------------------------------
 
-// The three bare-query tuning flags capture their raw value here (parseArgs stays
-// pure); validation + coercion happens at the point of use in bareQuery, so a bad
-// value is an honest usage error before any model call.
+// Model-tuning flags capture their raw value here (parseArgs stays pure);
+// validation + coercion happens at the point of use in bareQuery/runVerb, so a
+// bad value is an honest usage error before any model call.
 type Flags = {
   shape: boolean;
   json: boolean;
@@ -375,6 +376,8 @@ Flags (run):
   -t <id>        Continue an existing session (else a fresh session is minted)
   --fork         With -t: run on a fresh CLONE of that session (full history preserved); the source session stays untouched
   --progress <mode>  Progress on stderr: off | live | jsonl
+  --thinking <mode>  Override DeepSeek thinking: ${THINKING_MODES.join(" | ")}
+  --reasoning-effort <level>  Override DeepSeek effort: ${REASONING_EFFORTS.join(" | ")}
   --override "<reason>"  Proceed against a demanding gate — recorded in the session ledger, exit 0
 
 Flags (bare query):
@@ -383,9 +386,9 @@ Flags (bare query):
   --progress <mode>            Progress on stderr: off | live | jsonl
   --max-steps <n>              Deep-lane (--deep) agent step budget (default: 50)
   --thinking <mode>            Override DeepSeek thinking: ${THINKING_MODES.join(" | ")}
-                               (deepseek-v4 flash/pro default: enabled)
+                               (Flash default: enabled; quick lane: enabled)
   --reasoning-effort <level>   DeepSeek reasoning effort: ${REASONING_EFFORTS.join(" | ")}
-  (flow steps set these per-step in action.yaml via a settings: block)
+                               (Flash default: max; quick lane: high)
 
   Lanes:
   (default)                    QUICK lane — one synthesis pass over deterministic
@@ -420,17 +423,14 @@ Exit codes (run):
 const isPositiveInteger = (n: number): boolean => Number.isInteger(n) && n > 0;
 
 type BareOverrides = { maxSteps?: number | undefined; options: MastraModelOptions };
+type ReasoningOverrides = {
+  thinking?: ThinkingMode | undefined;
+  reasoningEffort?: ReasoningEffort | undefined;
+};
 
-function resolveBareOverrides(flags: Flags, model: string): Result<BareOverrides, string> {
-  const maxStepsR: Result<number | undefined, string> = match(flags.maxSteps)
-    .with(undefined, () => ok<number | undefined, string>(undefined))
-    .otherwise((raw) =>
-      match(Number(raw))
-        .with(P.when(isPositiveInteger), (n) => ok<number | undefined, string>(n))
-        .otherwise(() => err<number | undefined, string>(`--max-steps must be a positive integer, got "${raw}"`)),
-    );
-
-  // Model-setting tuples define both validation and error-message vocabulary.
+// One parser for both bare queries and workflow runs. A flag accepted by parseArgs
+// must either affect the model-backed command or fail loudly — never disappear.
+function resolveReasoningOverrides(flags: Flags): Result<ReasoningOverrides, string> {
   const thinkingR: Result<ThinkingMode | undefined, string> = match(flags.thinking)
     .with(undefined, () => ok<ThinkingMode | undefined, string>(undefined))
     .with(P.union(...THINKING_MODES), (t) => ok<ThinkingMode | undefined, string>(t))
@@ -447,17 +447,124 @@ function resolveBareOverrides(flags: Flags, model: string): Result<BareOverrides
       ),
     );
 
-  return Result.combine([maxStepsR, thinkingR, effortR]).andThen(([maxSteps, thinking, reasoningEffort]) =>
-    match((thinking !== undefined || reasoningEffort !== undefined) && !isDeepseek(model))
+  return Result.combine([thinkingR, effortR]).andThen(([thinking, reasoningEffort]) =>
+    match({ thinking, reasoningEffort })
+      .with({ thinking: "disabled", reasoningEffort: P.not(undefined) }, () =>
+        err<ReasoningOverrides, string>(
+          "--reasoning-effort cannot be combined with --thinking disabled",
+        ),
+      )
+      .otherwise(() => ok<ReasoningOverrides, string>({ thinking, reasoningEffort })),
+  );
+}
+
+// Materialize only real values so an absent CLI flag never deletes a workflow's
+// explicit setting. Thinking-off also displaces the inherited max effort with low:
+// Mastra deep-merges providerOptions, so omitting effort at call time would retain
+// max even though the mechanical lane deliberately disabled thinking.
+function reasoningPolicy(
+  overrides: ReasoningOverrides,
+  defaultEffort: ReasoningEffort | undefined,
+): ModelSettings {
+  const effort = overrides.reasoningEffort ??
+    match(overrides.thinking)
+      .with("disabled", () => "low" as const)
+      .otherwise(() => defaultEffort);
+  return {
+    ...match(overrides.thinking)
+      .with(undefined, () => ({}))
+      .otherwise((thinking) => ({ thinking })),
+    ...match(effort)
+      .with(undefined, () => ({}))
+      .otherwise((reasoningEffort) => ({ reasoningEffort })),
+  };
+}
+
+function resolveBareOverrides(flags: Flags, model: string): Result<BareOverrides, string> {
+  const maxStepsR: Result<number | undefined, string> = match(flags.maxSteps)
+    .with(undefined, () => ok<number | undefined, string>(undefined))
+    .otherwise((raw) =>
+      match(Number(raw))
+        .with(P.when(isPositiveInteger), (n) => ok<number | undefined, string>(n))
+        .otherwise(() => err<number | undefined, string>(`--max-steps must be a positive integer, got "${raw}"`)),
+    );
+
+  return Result.combine([maxStepsR, resolveReasoningOverrides(flags)]).andThen(([maxSteps, overrides]) =>
+    match(
+      (overrides.thinking !== undefined || overrides.reasoningEffort !== undefined) &&
+        !isDeepseek(model),
+    )
       .with(true, () =>
         err<BareOverrides, string>(`--thinking/--reasoning-effort are DeepSeek-only, but model is "${model}"`),
       )
       .with(false, () =>
         ok<BareOverrides, string>({
           maxSteps,
-          options: toMastraOptions(model, resolveSettings(model, { thinking, reasoningEffort })),
+          // Quick synthesis is the deliberate high-effort exception. Deep search
+          // inherits Flash/max. An explicit flag wins in both lanes.
+          options: toMastraOptions(
+            model,
+            resolveSettings(
+              model,
+              reasoningPolicy(
+                overrides,
+                match({ deepseek: isDeepseek(model), deep: flags.deep })
+                  .with({ deepseek: true, deep: false }, () => "high" as const)
+                  .otherwise(() => undefined),
+              ),
+            ),
+          ),
         }),
       )
+      .exhaustive(),
+  );
+}
+
+function applyRunReasoningOverrides(shape: Shape, flags: Flags): Result<Shape, string> {
+  return resolveReasoningOverrides(flags).andThen((overrides) =>
+    match(overrides.thinking === undefined && overrides.reasoningEffort === undefined)
+      .with(true, () => ok<Shape, string>(shape))
+      .with(false, () => {
+        const agentSteps = shape.steps.filter((step) => step.type === "agent");
+        const nonDeepseek = agentSteps.find((step) => !isDeepseek(step.model));
+        const disabledStep = agentSteps.find(
+          (step) =>
+            overrides.reasoningEffort !== undefined &&
+            overrides.thinking === undefined &&
+            step.settings.thinking === "disabled",
+        );
+        return match({ empty: agentSteps.length === 0, nonDeepseek, disabledStep })
+          .with({ empty: true }, () =>
+            err<Shape, string>("--thinking/--reasoning-effort require a workflow with an agent step"),
+          )
+          .with({ nonDeepseek: P.not(undefined) }, ({ nonDeepseek }) =>
+            err<Shape, string>(
+              `--thinking/--reasoning-effort are DeepSeek-only, but step "${nonDeepseek.name}" uses "${nonDeepseek.model}"`,
+            ),
+          )
+          .with({ disabledStep: P.not(undefined) }, ({ disabledStep }) =>
+            err<Shape, string>(
+              `--reasoning-effort cannot affect step "${disabledStep.name}" while its thinking setting is disabled; also pass --thinking enabled`,
+            ),
+          )
+          .otherwise(() => {
+            const policy = reasoningPolicy(overrides, undefined);
+            return ok<Shape, string>({
+              ...shape,
+              steps: shape.steps.map((step) =>
+                match(step)
+                  .with({ type: "agent" }, (agentStep) => ({
+                    ...agentStep,
+                    settings: resolveSettings(agentStep.model, {
+                      ...agentStep.settings,
+                      ...policy,
+                    }),
+                  }))
+                  .otherwise((commandStep) => commandStep),
+              ),
+            });
+          });
+      })
       .exhaustive(),
   );
 }
@@ -840,9 +947,14 @@ async function bareQuery(query: string, flags: Flags): Promise<never> {
   // rather than claiming the unavailable grade passed.
   const graderPrompt = `${prompt}\n\n=== ANSWER PRODUCED (grade this) ===\n${answerText}`;
   // Thinking-off is resolved fresh (NOT ...options) so the grader is deliberately
-  // thinking-off regardless of the answer's --thinking; on a non-deepseek model
-  // toMastraOptions simply drops the deepseek-only field.
-  const graderOpts = toMastraOptions(model, resolveSettings(model, { thinking: "disabled" }));
+  // mechanical regardless of the answer's --thinking. Effort low explicitly
+  // displaces the Agent's inherited Flash/max provider option under Mastra's deep
+  // merge; thinking disabled is the actual no-reasoning switch. On a non-deepseek
+  // model toMastraOptions drops both DeepSeek-only fields.
+  const graderOpts = toMastraOptions(
+    model,
+    resolveSettings(model, { thinking: "disabled", reasoningEffort: "low" }),
+  );
   const groundingStage = await runGroundingStage(async () => {
     const result = await agent.generate(graderPrompt, {
       instructions: buildGraderInstructions(),
@@ -946,7 +1058,7 @@ async function runVerb(
   // `loadShape` is async: a `.ts`-file `output:` reference is resolved by
   // dynamic import at plan time (still model-free). A broken reference lands as
   // a wiring lint error below, not a load failure.
-  const shape = (await loadShape(token, basePath)).match(
+  const loadedShape = (await loadShape(token, basePath)).match(
     (v) => v,
     (e) => fail(`navi run: ${e}\n`, 1),
   );
@@ -957,11 +1069,20 @@ async function runVerb(
   // resolves a PATH token, which the name-keyed catalog cannot. Zero model calls.
   match(flags.help)
     .with(true, () => {
-      console.log(flowHelp(shape, token, basePath));
+      console.log(flowHelp(loadedShape, token, basePath));
       process.exit(0);
     })
     .with(false, () => undefined)
     .exhaustive();
+
+  // Runtime DeepSeek tuning applies to every agent step and is visible in
+  // --shape. This closes the old silent-ignore path for `navi run ...
+  // --reasoning-effort max`; command-only and non-DeepSeek workflows fail loudly
+  // when given a DeepSeek-native override.
+  const shape = applyRunReasoningOverrides(loadedShape, flags).match(
+    (v) => v,
+    (e) => fail(`navi run: ${e}\n`, 1),
+  );
 
   // --override is only meaningful on a live gated run that DEMANDS. Cheap
   // pre-check: --shape never reaches a gate, so the flag is a loud usage error

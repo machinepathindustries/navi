@@ -31,8 +31,8 @@ steps:
     tools: [view, search_content, find_files, mastra_workspace_file_stat]
     skills:
       only: [founder]
-    # No step-local reasoningEffort: counsel is provider-portable. The managed
-    # DeepSeek v4 defaults still apply centrally through
+    # No provider-specific setting is duplicated here: counsel stays portable.
+    # The managed DeepSeek Flash baseline supplies max effort centrally through
     # src/mastra/model-settings.ts; other providers keep their native defaults.
     prompt: |
       You are giving founder counsel — advice, not a verdict. The doctrine and

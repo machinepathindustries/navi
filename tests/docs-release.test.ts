@@ -333,7 +333,8 @@ describe("public documentation release surface", () => {
     expect(envExample).toContain(
       `# One provider key is enough. The default model is ${defaultProvider.models.quick}.`,
     );
-    expect(envExample).toContain(`# NAVI_MODEL=${defaultProvider.models.workflow}`);
+    const alternateProvider = direct.find(({ id }) => id === "openai")!;
+    expect(envExample).toContain(`# NAVI_MODEL=${alternateProvider.models.quick}`);
     const liveCheck = readRoot("docker/coldstart/live-check.sh");
     expect(liveCheck).toContain('$PACKAGE/config/tested-models.json');
     expect(liveCheck).not.toMatch(/\bNAVI_MODEL=(?:deepseek|anthropic|google|xai|openai|openrouter)\//);

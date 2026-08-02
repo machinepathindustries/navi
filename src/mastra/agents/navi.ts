@@ -59,12 +59,11 @@ Hard rules:
   memory: new Memory(),
   inputProcessors: [sessionStateContextFilter()],
   // Managed model settings come from the one shared owner (model-settings.ts):
-  // v4-flash/v4-pro get temperature 0 plus explicit thinking; other models get
-  // no DeepSeek-specific settings. reasoningEffort stays unset by default and is
-  // an explicit
-  // per-invocation opt-in via `--reasoning-effort` (cli.ts) or a step `settings:`
-  // block (the DSL). A per-call `--thinking`/`--max-steps` override deep-merges on
-  // top of these defaults.
+  // Navi's reference DeepSeek Flash target gets temperature 0, thinking enabled,
+  // and max effort. Quick synthesis and mechanical grading deliberately override
+  // that baseline per call; other providers retain their native defaults. A
+  // per-call `--thinking`/`--reasoning-effort`/`--max-steps` override deep-merges
+  // on top of these defaults.
   defaultOptions: {
     maxSteps: DEFAULT_MAX_STEPS,
     ...toMastraOptions(model, resolveSettings(model)),
