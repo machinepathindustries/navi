@@ -47,7 +47,7 @@
     "@mastra/evals": "^1.6.0",
     "@types/node": "^26.1.1",
     "typescript": "^6.0.3",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
